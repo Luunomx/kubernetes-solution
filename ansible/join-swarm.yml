@@ -1,0 +1,16 @@
+---
+- name: Join workers to the Swarm
+  hosts: workers
+  become: true
+
+  vars:
+    manager_ip: "{{ hostvars[groups['manager'][0]].ansible_default_ipv4.address }}"
+    worker_token: "{{ hostvars[groups['manager'][0]].swarm_worker_token }}"
+
+  tasks:
+    - name: Join worker to Swarm
+      ansible.builtin.command:
+        cmd: docker swarm join --token {{ worker_token }} {{ manager_ip }}:2377
+      register: join_result
+      failed_when: false
+      changed_when: "'This node is already part of a swarm' not in join_result.stderr"

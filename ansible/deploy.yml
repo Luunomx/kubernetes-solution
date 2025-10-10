@@ -1,0 +1,43 @@
+---
+- name: Deploy application to Docker Swarm
+  hosts: all
+  become: yes
+  vars:
+    aws_region: "{{ lookup('env','AWS_REGION') }}"
+    aws_account_id: "{{ lookup('env','AWS_ACCOUNT_ID') }}"
+    ecr_image_uri: "{{ lookup('env','ECR_IMAGE_URI') }}"
+  tasks:
+    - name: Log in to ECR
+      shell: |
+        aws ecr get-login-password --region {{ aws_region }} \
+        | docker login --username AWS --password-stdin {{ aws_account_id }}.dkr.ecr.{{ aws_region }}.amazonaws.com
+      register: ecr_login
+
+    - name: Debug ECR login output
+      debug:
+        var: ecr_login.stdout_lines
+
+- name: Create or update Swarm service
+  hosts: manager
+  become: yes
+  vars:
+    ecr_image_uri: "{{ lookup('env','ECR_IMAGE_URI') }}"
+  tasks:
+    - name: Deploy or update swarm-demo-app service
+      shell: |
+        if docker service ls --format '{% raw %}{{.Name}}{% endraw %}' | grep -q '^swarm-demo-app$'; then
+          docker service update \
+            --with-registry-auth \
+            --image "{{ ecr_image_uri }}" \
+            --force swarm-demo-app
+        else
+          docker service create \
+            --with-registry-auth \
+            --name swarm-demo-app \
+            --publish 80:80 \
+            --network webnet \
+            --replicas 3 \
+            "{{ ecr_image_uri }}"
+        fi
+      args:
+        executable: /bin/bash

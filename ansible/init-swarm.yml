@@ -1,0 +1,21 @@
+---
+- name: Initialize Docker Swarm on manager
+  hosts: manager
+  become: true
+
+  tasks:
+    - name: Initialize Swarm on manager
+      ansible.builtin.command:
+        cmd: docker swarm init --advertise-addr {{ ansible_default_ipv4.address }}
+      register: swarm_init
+      failed_when: false
+      changed_when: "'This node is already part of a swarm' not in swarm_init.stderr"
+
+    - name: Get worker join token
+      ansible.builtin.command:
+        cmd: docker swarm join-token -q worker
+      register: worker_token
+
+    - name: Save worker token for use in workers
+      ansible.builtin.set_fact:
+        swarm_worker_token: "{{ worker_token.stdout }}"

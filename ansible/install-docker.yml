@@ -1,0 +1,21 @@
+---
+- name: Install and configure Docker on all nodes
+  hosts: all
+  become: true   # kör som root med sudo
+
+  tasks:
+    - name: Update system packages
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+
+    - name: Install Docker
+      ansible.builtin.yum:
+        name: docker
+        state: present
+
+    - name: Enable and start Docker service
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true

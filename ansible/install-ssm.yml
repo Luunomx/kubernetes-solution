@@ -1,0 +1,16 @@
+---
+- name: Install and configure Amazon SSM Agent
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Install amazon-ssm-agent
+      ansible.builtin.yum:
+        name: amazon-ssm-agent
+        state: present
+
+    - name: Enable and start amazon-ssm-agent
+      ansible.builtin.service:
+        name: amazon-ssm-agent
+        state: started
+        enabled: true
