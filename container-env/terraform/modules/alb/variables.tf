@@ -1,25 +1,23 @@
+################################################
+# ALB Module Variables (for EKS)
+################################################
+
 variable "name" {
-  description = "Prefix name for ALB resources"
+  type        = string
+  description = "Prefix name for all ALB resources"
 }
 
 variable "vpc_id" {
-  description = "VPC ID"
+  type        = string
+  description = "VPC ID where the ALB will be created"
 }
 
 variable "subnet_ids" {
   type        = list(string)
-  description = "List of public subnet IDs"
+  description = "List of subnet IDs to associate with the ALB"
 }
 
 variable "sg_id" {
-  description = "Security group ID"
-}
-
-variable "manager_instance_id" {
-  description = "ID of the Swarm manager instance"
-}
-
-variable "worker_instance_ids" {
-  type        = list(string)
-  description = "IDs of the Swarm worker instances"
+  type        = string
+  description = "Security group ID for the ALB"
 }

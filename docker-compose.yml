@@ -1,0 +1,56 @@
+services:
+  mongodb:
+    image: mongo:8.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: BulletinBoardDb
+    volumes:
+      - mongodb-data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    command: ["--bind_ip_all"]
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    container_name: backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: "27017"
+      MONGODB_DATABASE: BulletinBoardDb
+      MONGODB_USER: root
+      MONGODB_PASSWORD: example
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./simple-fluid-page
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    ports:
+      - "8081:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  mongodb-data:
+
+networks:
+  app-network:
+    driver: bridge

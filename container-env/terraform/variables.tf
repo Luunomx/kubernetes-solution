@@ -13,6 +13,14 @@ variable "name" {
 }
 
 ################################################
+# SSH Key for Bastion
+################################################
+variable "key_name" {
+  type        = string
+  description = "Name of the existing AWS key pair to use for the bastion host"
+}
+
+################################################
 # EKS Cluster settings
 ################################################
 variable "cluster_version" {

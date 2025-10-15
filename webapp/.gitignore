@@ -1,0 +1,76 @@
+# --- OS & Editor files ---
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.bak
+
+# --- Node / JS (if frontend exists) ---
+node_modules/
+dist/
+build/
+.env
+.env.*
+
+# --- Python (if scripts/tools exist) ---
+__pycache__/
+*.pyc
+
+# --- Terraform ---
+*.tfstate
+*.tfstate.*
+.crash
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+terraform.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# --- Ansible ---
+*.retry
+inventory.ini
+host_vars/
+group_vars/
+
+# --- SSH & AWS Keys ---
+*.pem
+*.ppk
+*.key
+*.pub
+
+# --- Kubernetes ---
+*.kube/config
+.kube/
+*.yaml~
+*.yml~
+kubeconfig
+*.crt
+*.csr
+*.key
+secrets.yaml
+
+# --- Docker ---
+*.tar
+*.pid
+docker-compose.override.yml
+
+# --- IDE & System ---
+.vscode/
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.user
+
+# --- Misc ---
+*.zip
+*.gz
+*.bak
+*.tmp
+*.old

@@ -37,11 +37,7 @@ export default function LiquidEther({
     function makePaletteTexture(stops) {
       let arr;
       if (Array.isArray(stops) && stops.length > 0) {
-        if (stops.length === 1) {
-          arr = [stops[0], stops[0]];
-        } else {
-          arr = stops;
-        }
+        arr = stops.length === 1 ? [stops[0], stops[0]] : stops;
       } else {
         arr = ['#ffffff', '#ffffff'];
       }
@@ -121,12 +117,15 @@ export default function LiquidEther({
         this.diff = new THREE.Vector2();
         this.timer = null;
         this.container = null;
+
+        // bundna handlers
         this._onMouseMove = this.onDocumentMouseMove.bind(this);
         this._onTouchStart = this.onDocumentTouchStart.bind(this);
         this._onTouchMove = this.onDocumentTouchMove.bind(this);
         this._onMouseEnter = this.onMouseEnter.bind(this);
         this._onMouseLeave = this.onMouseLeave.bind(this);
         this._onTouchEnd = this.onTouchEnd.bind(this);
+
         this.isHoverInside = false;
         this.hasUserControl = false;
         this.isAutoActive = false;
@@ -138,24 +137,32 @@ export default function LiquidEther({
         this.takeoverTo = new THREE.Vector2();
         this.onInteract = null;
       }
+
       init(container) {
         this.container = container;
-        container.addEventListener('mousemove', this._onMouseMove, false);
-        container.addEventListener('touchstart', this._onTouchStart, false);
-        container.addEventListener('touchmove', this._onTouchMove, false);
+
+        // Viktigt: lyssna globalt för rörelse så canvas får events även när UI ligger ovanpå
+        window.addEventListener('mousemove', this._onMouseMove, false);
+        window.addEventListener('touchstart', this._onTouchStart, { passive: false });
+        window.addEventListener('touchmove', this._onTouchMove, { passive: false });
+        window.addEventListener('touchend', this._onTouchEnd, false);
+
+        // Behåll enter/leave på containern för auto-driver-logiken
         container.addEventListener('mouseenter', this._onMouseEnter, false);
         container.addEventListener('mouseleave', this._onMouseLeave, false);
-        container.addEventListener('touchend', this._onTouchEnd, false);
       }
+
       dispose() {
-        if (!this.container) return;
-        this.container.removeEventListener('mousemove', this._onMouseMove, false);
-        this.container.removeEventListener('touchstart', this._onTouchStart, false);
-        this.container.removeEventListener('touchmove', this._onTouchMove, false);
-        this.container.removeEventListener('mouseenter', this._onMouseEnter, false);
-        this.container.removeEventListener('mouseleave', this._onMouseLeave, false);
-        this.container.removeEventListener('touchend', this._onTouchEnd, false);
+        if (this.container) {
+          this.container.removeEventListener('mouseenter', this._onMouseEnter, false);
+          this.container.removeEventListener('mouseleave', this._onMouseLeave, false);
+        }
+        window.removeEventListener('mousemove', this._onMouseMove, false);
+        window.removeEventListener('touchstart', this._onTouchStart, false);
+        window.removeEventListener('touchmove', this._onTouchMove, false);
+        window.removeEventListener('touchend', this._onTouchEnd, false);
       }
+
       setCoords(x, y) {
         if (!this.container) return;
         if (this.timer) clearTimeout(this.timer);
@@ -239,8 +246,8 @@ export default function LiquidEther({
         this.mouse = mouse;
         this.manager = manager;
         this.enabled = opts.enabled;
-        this.speed = opts.speed; // normalized units/sec
-        this.resumeDelay = opts.resumeDelay || 3000; // ms
+        this.speed = opts.speed;
+        this.resumeDelay = opts.resumeDelay || 3000;
         this.rampDurationMs = (opts.rampDuration || 0) * 1000;
         this.active = false;
         this.current = new THREE.Vector2(0, 0);
@@ -248,7 +255,7 @@ export default function LiquidEther({
         this.lastTime = performance.now();
         this.activationTime = 0;
         this.margin = 0.2;
-        this._tmpDir = new THREE.Vector2(); // reuse temp vector to avoid per-frame alloc
+        this._tmpDir = new THREE.Vector2();
         this.pickNewTarget();
       }
       pickNewTarget() {
@@ -948,7 +955,7 @@ export default function LiquidEther({
         this.output.update();
       }
       loop() {
-        if (!this.running) return; // safety
+        if (!this.running) return;
         this.render();
         rafRef.current = requestAnimationFrame(this._loop);
       }
@@ -974,7 +981,7 @@ export default function LiquidEther({
             if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
             Common.renderer.dispose();
           }
-        } catch (e) {
+        } catch {
           void 0;
         }
       }
@@ -1020,7 +1027,6 @@ export default function LiquidEther({
 
     webgl.start();
 
-    // IntersectionObserver to pause rendering when not visible
     const io = new IntersectionObserver(
       entries => {
         const entry = entries[0];
@@ -1052,18 +1058,10 @@ export default function LiquidEther({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       if (resizeObserverRef.current) {
-        try {
-          resizeObserverRef.current.disconnect();
-        } catch (e) {
-          void 0;
-        }
+        try { resizeObserverRef.current.disconnect(); } catch { void 0; }
       }
       if (intersectionObserverRef.current) {
-        try {
-          intersectionObserverRef.current.disconnect();
-        } catch (e) {
-          void 0;
-        }
+        try { intersectionObserverRef.current.disconnect(); } catch { void 0; }
       }
       if (webglRef.current) {
         webglRef.current.dispose();

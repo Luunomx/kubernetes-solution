@@ -1,6 +1,0 @@
----
-- import_playbook: install-docker.yml
-- import_playbook: install-ssm.yml
-- import_playbook: init-swarm.yml
-- import_playbook: join-swarm.yml
-- import_playbook: create-network.yml

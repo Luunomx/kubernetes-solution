@@ -2,7 +2,7 @@ name: container-env
 
 on:
   push:
-    branches: [ aws-two-envs ]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -14,8 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: eu-west-1
+      ECR_REPOSITORY: todoapp
+      EKS_CLUSTER: kubernetes-solution-eks
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -25,8 +29,8 @@ jobs:
 
       - name: Ensure ECR repository exists
         run: |
-          aws ecr describe-repositories --repository-names swarm-demo-app >/dev/null 2>&1 || \
-          aws ecr create-repository --repository-name swarm-demo-app
+          aws ecr describe-repositories --repository-names $ECR_REPOSITORY >/dev/null 2>&1 || \
+          aws ecr create-repository --repository-name $ECR_REPOSITORY
 
       - name: Login to ECR
         id: ecr
@@ -34,74 +38,39 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          IMAGE="${{ steps.ecr.outputs.registry }}/swarm-demo-app:${{ github.sha }}"
+          IMAGE="${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}"
           docker build -f simple-fluid-page/Dockerfile -t "$IMAGE" simple-fluid-page
           docker push "$IMAGE"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-
-      - name: Set TF_VAR for image
-        run: echo "TF_VAR_image_uri=$IMAGE" >> $GITHUB_ENV
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
-      - name: Terraform apply
-        id: tf
+      - name: Terraform init & apply
         working-directory: container-env/terraform
         env:
           TF_VAR_key_name: ${{ secrets.TF_VAR_KEY_NAME }}
         run: |
-          terraform init
-          terraform apply -auto-approve
-          echo "bastion_ip=$(terraform output -raw bastion_public_ip)" >> $GITHUB_OUTPUT
+          terraform init -input=false
+          terraform apply -auto-approve -input=false
 
-      - name: Install Ansible + Docker dependencies
+      - name: Configure kubectl for EKS
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ansible python3-pip
-          pip3 install docker
+          aws eks update-kubeconfig \
+            --name ${{ env.EKS_CLUSTER }} \
+            --region ${{ env.AWS_REGION }}
 
-      - name: Setup SSH for Ansible
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.14.3
+
+      - name: Deploy Todo App to EKS with Helm
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/swarm-key.pem
-          chmod 600 ~/.ssh/swarm-key.pem
-          # Disable host key checking globally
-          echo 'export ANSIBLE_HOST_KEY_CHECKING=False' >> $GITHUB_ENV
-          echo "Host *" >> ~/.ssh/config
-          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-          echo "  UserKnownHostsFile=/dev/null" >> ~/.ssh/config
-          # Bastion
-          echo "Host bastion" >> ~/.ssh/config
-          echo "  HostName ${{ steps.tf.outputs.bastion_ip }}" >> ~/.ssh/config
-          echo "  User ec2-user" >> ~/.ssh/config
-          echo "  IdentityFile ~/.ssh/swarm-key.pem" >> ~/.ssh/config
-          echo "  IdentitiesOnly yes" >> ~/.ssh/config
-          # Private nodes
-          echo "Host 10.*" >> ~/.ssh/config
-          echo "  User ec2-user" >> ~/.ssh/config
-          echo "  IdentityFile ~/.ssh/swarm-key.pem" >> ~/.ssh/config
-          echo "  IdentitiesOnly yes" >> ~/.ssh/config
-          echo "  ProxyJump ec2-user@${{ steps.tf.outputs.bastion_ip }}" >> ~/.ssh/config
-
-      - name: Generate Ansible inventory
-        run: terraform -chdir=container-env/terraform output -raw ansible_inventory > ansible/inventory.ini
-
-      - name: Debug Ansible inventory
-        run: cat ansible/inventory.ini
-
-      - name: Debug SSH connectivity
-        run: |
-          echo "Testing SSH via bastion to manager..."
-          ssh -vvv 10.0.11.172 echo "SSH OK" || true
-
-      - name: Run Ansible playbooks
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          ECR_IMAGE_URI: ${{ env.IMAGE }}
-        run: |
-          ansible-playbook -i ansible/inventory.ini ansible/site.yml
-          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
+          helm upgrade --install todo-app ./k8s/helm/todo-app \
+            --set image.repository=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }} \
+            --set image.tag=${{ github.sha }} \
+            --namespace default \
+            --create-namespace

@@ -10,7 +10,7 @@ resource "aws_ecr_repository" "app" {
     Name = var.ecr_repo_name
   }
 
-  lifecycle {
-    prevent_destroy = true
-  }
+#  lifecycle {
+#    prevent_destroy = true
+#  }
 }

@@ -86,20 +86,22 @@ resource "aws_iam_role_policy_attachment" "AmazonEKS_CNI_Policy" {
   role       = aws_iam_role.eks_node_role.name
 }
 
-# Create node group
+# Create node group (Free Tier–kompatibel)
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.name}-node-group"
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = var.subnet_ids
 
-  scaling_config {
-    desired_size = var.desired_capacity
-    max_size     = var.max_capacity
-    min_size     = var.min_capacity
-  }
+  # Free Tier instanstyp + rätt AMI-arkitektur för Graviton
+  instance_types = ["t4g.micro"]
+  ami_type       = "AL2023_ARM_64_STANDARD"
 
-  instance_types = [var.node_instance_type]
+  scaling_config {
+    desired_size = 1
+    max_size     = 1
+    min_size     = 1
+  }
 
   depends_on = [
     aws_eks_cluster.this

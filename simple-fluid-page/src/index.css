@@ -1,13 +1,60 @@
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
-  background: black; /* eller transparent om du vill se igenom */
+  background: black; /* byt till transparent om du vill ha egen bakgrund */
+  overflow: hidden;
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* Säkerställer att LiquidEther-canvas fyller hela ytan */
+canvas {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: transparent !important;
+  pointer-events: auto; /* Viktigt: canvas reagerar på musrörelser även under UI */
+}
+
+/* Lager ovanpå (BulletinBoard) */
+.app-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 
-canvas {
-  display: block;
-  background: transparent !important;
+/* Overlay som ligger ovanpå canvas */
+.content-overlay {
+  position: relative;
+  z-index: 5;
+  pointer-events: none; /* släpper igenom musrörelser till canvas */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+/* Formuläret och dess interaktiva element ska fortfarande kunna klickas */
+.content-overlay .glass-form,
+.content-overlay form,
+.content-overlay input,
+.content-overlay textarea,
+.content-overlay button {
+  pointer-events: auto;
+}
+
+/* För BulletinBoard-layout */
+.bulletin-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  padding: 40px;
+  position: relative;
+  z-index: 5;
 }

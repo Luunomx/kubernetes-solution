@@ -1,0 +1,90 @@
+# =========================
+# Core
+# =========================
+.vs/
+.vscode/
+.idea/
+bin/
+obj/
+out/
+dist/
+node_modules/
+__pycache__/
+.env
+.env.*
+*.log
+*.pid
+*.seed
+*.bak
+*.tmp
+
+# =========================
+# OS / System
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Docker
+# =========================
+/docker-data/
+/volumes/
+/mnt/data/
+/*.tar
+*.bak
+*.swp
+*.swo
+
+# =========================
+# MongoDB
+# =========================
+/data/db/
+/data/configdb/
+/mongodb-data/
+
+# =========================
+# Build Artifacts
+# =========================
+/build/
+/coverage/
+/coverage-final.json
+*.coverage
+*.coveragexml
+
+# =========================
+# Frontend (React/Vite)
+# =========================
+simple-fluid-page/node_modules/
+/simple-fluid-page/.vite
+simple-fluid-page/.cache
+simple-fluid-page/dist/
+simple-fluid-page/build/
+*.lock
+
+# =========================
+# Backend (C# / ASP.NET)
+# =========================
+webapp/bin/
+webapp/obj/
+webapp/*.user
+webapp/*.suo
+webapp/*.dbmdl
+webapp/appsettings.Development.json
+webapp/appsettings.Local.json
+
+# =========================
+# Kubernetes / Terraform / Secrets
+# =========================
+/secrets/
+/k8s/
+/terraform.tfstate
+/terraform.tfstate.backup
+*.tfvars
+*.tfvars.json
+
+# =========================
+# Git Specific
+# =========================
+.gitignore
+!.gitignore
