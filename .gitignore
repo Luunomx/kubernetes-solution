@@ -88,3 +88,11 @@ webapp/appsettings.Local.json
 # =========================
 .gitignore
 !.gitignore
+# =========================
+# Terraform Providers / Binary Artifacts
+# =========================
+.terraform/
+*.exe
+*.zip
+terraform/
+container-env/
