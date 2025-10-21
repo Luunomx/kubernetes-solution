@@ -1,20 +1,29 @@
-/* Container – centrerar hela sektionen */
+/* ================================
+   BULLETIN BOARD MAIN CONTAINER
+   ================================ */
 .bulletin-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 30px;
   min-height: 100vh;
-  padding: 40px 0;
+  padding: 40px 1rem;
   position: relative;
   z-index: 5;
-  color: #fff; /* gör all text vit som default */
+  color: #fff;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
-/* Formkort med glas-effekt */
+/* ================================
+   FORM CONTAINER – GLASS EFFECT
+   ================================ */
 .glass-form {
-  width: 600px;
+  width: 100%;
+  max-width: 600px;
   padding: 40px;
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.15);
@@ -24,6 +33,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-sizing: border-box;
 }
 
 .glass-form h2 {
@@ -34,7 +44,9 @@
   color: #fff;
 }
 
-/* Formlayout */
+/* ================================
+   FORM LAYOUT
+   ================================ */
 .bulletin-form {
   display: flex;
   flex-direction: column;
@@ -45,12 +57,14 @@
   display: flex;
   gap: 15px;
   justify-content: space-between;
+  flex-wrap: wrap;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 150px;
 }
 
 .glass-form label {
@@ -59,22 +73,28 @@
   color: #fff;
 }
 
-.glass-form input {
+.glass-form input,
+.glass-form textarea {
   background: rgba(255, 255, 255, 0.3);
   border: none;
   border-radius: 10px;
   padding: 10px;
   font-size: 1em;
-  color: #fff; /* text i input vit */
+  color: #fff;
   outline: none;
   box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.glass-form input::placeholder {
+.glass-form input::placeholder,
+.glass-form textarea::placeholder {
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* Knapp */
+/* ================================
+   BUTTON
+   ================================ */
 .glass-form button {
   align-self: flex-start;
   background: #ffffff;
@@ -85,7 +105,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: 0.3s;
-  color: #000; /* svart text – undantag */
+  color: #000;
 }
 
 .glass-form button:hover {
@@ -93,7 +113,9 @@
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
 }
 
-/* Lista med poster */
+/* ================================
+   POSTS LIST
+   ================================ */
 .posts {
   width: 100%;
   max-width: 600px;
@@ -102,10 +124,11 @@
   align-items: center;
   gap: 15px;
   margin-top: 20px;
-  max-height: 50vh;
+  max-height: 60vh;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+  box-sizing: border-box;
 }
 
 /* Scrollbars för WebKit */
@@ -126,7 +149,9 @@
   font-weight: 500;
 }
 
-/* Enskild post */
+/* ================================
+   SINGLE POST CARD
+   ================================ */
 .post {
   width: 100%;
   max-width: 500px;
@@ -136,7 +161,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   padding: 20px;
-  color: #fff; /* text i meddelanden vit */
+  color: #fff;
+  box-sizing: border-box;
 }
 
 .post-header {
@@ -152,4 +178,58 @@
   font-size: 1.1em;
   line-height: 1.4em;
   color: #fff;
+}
+
+/* ================================
+   RESPONSIVE DESIGN
+   ================================ */
+@media (max-width: 768px) {
+  .glass-form {
+    padding: 25px;
+    max-width: 100%;
+  }
+
+  .glass-form h2 {
+    font-size: 1.6em;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .posts {
+    max-width: 100%;
+    max-height: 50vh;
+  }
+
+  .post {
+    max-width: 100%;
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+  }
+}
+
+@media (max-width: 480px) {
+  .glass-form {
+    padding: 20px;
+  }
+
+  .glass-form h2 {
+    font-size: 1.4em;
+  }
+
+  input,
+  textarea {
+    font-size: 0.9em;
+  }
+
+  .post {
+    font-size: 0.9em;
+    padding: 15px;
+  }
 }

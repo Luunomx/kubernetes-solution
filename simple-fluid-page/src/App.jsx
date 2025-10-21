@@ -7,9 +7,13 @@ export default function App() {
       className="app-container"
       style={{
         width: "100%",
-        height: "100vh",
+        minHeight: "100vh", // tillåter sidan att växa med innehåll
         position: "relative",
         overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
       }}
     >
       {/* Bakgrundseffekt – alltid aktiv */}
@@ -24,10 +28,10 @@ export default function App() {
       >
         <LiquidEther
           colors={["#5227FF", "#FF9FFC", "#B19EEF"]}
-          resolution={0.3}        // sänk för bättre prestanda
-          iterationsViscous={16}  // halvera iterationer
-          iterationsPoisson={16}  // halvera iterationer
-          autoDemo={false}        // avstängd: användarens mus styr hela tiden
+          resolution={0.3}
+          iterationsViscous={16}
+          iterationsPoisson={16}
+          autoDemo={false}
           autoSpeed={0.5}
           autoIntensity={2.2}
         />
@@ -49,15 +53,17 @@ export default function App() {
         style={{
           position: "relative",
           zIndex: 5,
-          pointerEvents: "none", // låter musen gå igenom overlay
+          pointerEvents: "none",
+          width: "100%",
+          maxWidth: "1000px", // ny: begränsar total bredd
+          padding: "2rem 1rem",
+          boxSizing: "border-box",
           display: "flex",
           justifyContent: "center",
-          alignItems: "center",
-          height: "100%",
         }}
       >
         {/* Själva formuläret är klickbart */}
-        <div style={{ pointerEvents: "auto" }}>
+        <div style={{ pointerEvents: "auto", width: "100%" }}>
           <BulletinBoard />
         </div>
       </div>

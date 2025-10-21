@@ -1,45 +1,71 @@
+/* ================================
+   GLOBAL RESET & BOX-SIZING
+   ================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* ================================
+   ROOT LAYOUT
+   ================================ */
 html,
 body,
 #root {
   margin: 0;
   padding: 0;
   width: 100%;
-  height: 100%;
+  min-height: 100%;
   background: black; /* byt till transparent om du vill ha egen bakgrund */
-  overflow: hidden;
   font-family: "Segoe UI", sans-serif;
+  overflow-x: hidden; /* hindrar horisontell scroll */
 }
 
-/* Säkerställer att LiquidEther-canvas fyller hela ytan */
+/* ================================
+   CANVAS (LiquidEther)
+   ================================ */
 canvas {
   display: block;
   position: fixed;
   inset: 0;
   z-index: 0;
   background: transparent !important;
-  pointer-events: auto; /* Viktigt: canvas reagerar på musrörelser även under UI */
+  pointer-events: auto; /* låter musen styra effekten */
 }
 
-/* Lager ovanpå (BulletinBoard) */
+/* ================================
+   APP CONTAINER
+   ================================ */
 .app-container {
   position: relative;
   width: 100%;
-  height: 100%;
+  min-height: 100vh; /* växer med innehållet */
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
 }
 
-/* Overlay som ligger ovanpå canvas */
+/* ================================
+   CONTENT OVERLAY (BulletinBoard)
+   ================================ */
 .content-overlay {
   position: relative;
   z-index: 5;
   pointer-events: none; /* släpper igenom musrörelser till canvas */
+  width: 100%;
+  max-width: 1000px; /* begränsar total bredd */
+  margin: 0 auto;
+  padding: 2rem 1rem;
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 100%;
+  align-items: flex-start;
+  box-sizing: border-box;
 }
 
-/* Formuläret och dess interaktiva element ska fortfarande kunna klickas */
+/* Gör så att formuläret går att klicka */
 .content-overlay .glass-form,
 .content-overlay form,
 .content-overlay input,
@@ -48,7 +74,9 @@ canvas {
   pointer-events: auto;
 }
 
-/* För BulletinBoard-layout */
+/* ================================
+   BULLETIN BOARD LAYOUT
+   ================================ */
 .bulletin-container {
   display: flex;
   flex-direction: column;
@@ -57,4 +85,51 @@ canvas {
   padding: 40px;
   position: relative;
   z-index: 5;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ================================
+   RESPONSIVE BEHAVIOR
+   ================================ */
+@media (max-width: 768px) {
+  .content-overlay {
+    max-width: 100%;
+    padding: 1rem;
+  }
+
+  .bulletin-container {
+    padding: 1rem;
+    gap: 20px;
+  }
+
+  input,
+  textarea,
+  button {
+    font-size: 0.95rem;
+  }
+
+  button {
+    width: 100%;
+    padding: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .content-overlay {
+    padding: 0.5rem;
+  }
+
+  .bulletin-container {
+    padding: 0.5rem;
+    gap: 15px;
+  }
+
+  input,
+  textarea,
+  button {
+    font-size: 0.9rem;
+  }
 }

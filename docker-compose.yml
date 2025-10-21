@@ -1,17 +1,19 @@
+version: '3.9'
+
 services:
   mongodb:
     image: mongo:8.0
     container_name: mongodb
     restart: always
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT}:27017"
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: example
-      MONGO_INITDB_DATABASE: BulletinBoardDb
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
     volumes:
       - mongodb-data:/data/db
-      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - ./mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     command: ["--bind_ip_all"]
     networks:
       - app-network
@@ -23,13 +25,11 @@ services:
     container_name: backend
     restart: always
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT}:8080"
     environment:
-      MONGODB_HOST: mongodb
-      MONGODB_PORT: "27017"
-      MONGODB_DATABASE: BulletinBoardDb
-      MONGODB_USER: root
-      MONGODB_PASSWORD: example
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT}
+      ASPNETCORE_URLS: ${ASPNETCORE_URLS}
+      MONGO_CONNECTION_STRING: ${MONGO_CONNECTION_STRING}
     depends_on:
       - mongodb
     networks:
@@ -43,6 +43,8 @@ services:
     restart: always
     ports:
       - "8081:80"
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
     depends_on:
       - backend
     networks:

@@ -6,15 +6,26 @@ export default function BulletinBoard() {
   const [message, setMessage] = useState("");
   const [posts, setPosts] = useState([]);
 
-  // Hämta poster (posts) från backend vid start
+  // ----------------------------
+  // Fetch posts from backend
+  // ----------------------------
   useEffect(() => {
-    fetch("http://localhost:8080/api/posts")
-      .then((res) => res.json())
-      .then(setPosts)
-      .catch(console.error);
+    const loadPosts = async () => {
+      try {
+        const res = await fetch("/api/posts");
+        if (!res.ok) throw new Error("Failed to fetch posts");
+        const data = await res.json();
+        setPosts(data);
+      } catch (err) {
+        console.error("Error fetching posts:", err);
+      }
+    };
+    loadPosts();
   }, []);
 
-  // Hantera inlämning av ny post
+  // ----------------------------
+  // Handle form submission
+  // ----------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!message.trim()) return;
@@ -26,21 +37,30 @@ export default function BulletinBoard() {
       isComplete: false,
     };
 
-    await fetch("http://localhost:8080/api/posts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newPost),
-    });
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPost),
+      });
 
-    setName("");
-    setMessage("");
+      if (!res.ok) throw new Error("Failed to post message");
 
-    const updated = await fetch("http://localhost:8080/api/posts").then((res) =>
-      res.json()
-    );
-    setPosts(updated);
+      setName("");
+      setMessage("");
+
+      // Refresh post list
+      const updated = await fetch("/api/posts");
+      const updatedPosts = await updated.json();
+      setPosts(updatedPosts);
+    } catch (err) {
+      console.error("Error submitting post:", err);
+    }
   };
 
+  // ----------------------------
+  // Render component
+  // ----------------------------
   return (
     <div className="bulletin-container">
       <div className="glass-form">
