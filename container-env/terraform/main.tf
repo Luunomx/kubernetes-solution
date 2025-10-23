@@ -87,6 +87,6 @@ module "alb" {
 # Elastic Container Registry
 ################################################
 module "ecr" {
-  source        = "./modules/ecr"
-  ecr_repo_name = var.ecr_repo_name
+  source = "./modules/ecr"
 }
+

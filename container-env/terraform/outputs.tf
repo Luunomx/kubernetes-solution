@@ -39,9 +39,12 @@ output "eks_node_role_arn" {
 ################################################
 # ECR Repository
 ################################################
-output "ecr_repository_url" {
-  description = "URL of the ECR repository for pushing images"
-  value       = module.ecr.repository_url
+output "backend_repository_url" {
+  value = module.ecr.backend_repository_url
+}
+
+output "frontend_repository_url" {
+  value = module.ecr.frontend_repository_url
 }
 
 ################################################

@@ -1,16 +1,24 @@
-# ECR Repository
-resource "aws_ecr_repository" "app" {
-  name = var.ecr_repo_name
+# ECR Repositories
+resource "aws_ecr_repository" "backend" {
+  name = "bulletinboard-backend"
 
   image_scanning_configuration {
     scan_on_push = true
   }
 
   tags = {
-    Name = var.ecr_repo_name
+    Name = "bulletinboard-backend"
+  }
+}
+
+resource "aws_ecr_repository" "frontend" {
+  name = "bulletinboard-frontend"
+
+  image_scanning_configuration {
+    scan_on_push = true
   }
 
-#  lifecycle {
-#    prevent_destroy = true
-#  }
+  tags = {
+    Name = "bulletinboard-frontend"
+  }
 }

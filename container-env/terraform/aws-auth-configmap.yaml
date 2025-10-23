@@ -4,8 +4,13 @@ metadata:
   name: aws-auth
   namespace: kube-system
 data:
+  mapRoles: |
+    - rolearn: arn:aws:iam::878311921064:role/kubernetes-solution-eks-cluster-role
+      username: eks-cluster-role
+      groups:
+        - system:masters
   mapUsers: |
     - userarn: arn:aws:iam::878311921064:user/LuunomEC2Admin
-      username: admin
+      username: eks-admin
       groups:
         - system:masters
