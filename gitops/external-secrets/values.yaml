@@ -1,1 +1,5 @@
-# Placeholder – IRSA + AWS settings will be added later
+serviceAccount:
+  create: true
+  name: external-secrets
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::878311921064:role/ExternalSecretsRole"
