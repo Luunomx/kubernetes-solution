@@ -6,11 +6,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/luunomx/kubernetes-solution.git
-    targetRevision: main
-    path: gitops/mongodb-operator
-    directory:
-      recurse: true
+    repoURL: https://mongodb.github.io/helm-charts
+    chart: community-operator
+    targetRevision: 0.14.0
+    helm:
+      values: |
+        operator:
+          watchNamespace: "*"
+        replicaCount: 1
   destination:
     server: https://kubernetes.default.svc
     namespace: mongodb-operator
@@ -18,3 +21,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
