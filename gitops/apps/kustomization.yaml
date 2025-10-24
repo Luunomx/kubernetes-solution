@@ -3,4 +3,3 @@ kind: Kustomization
 resources:
   - external-secrets-app.yaml
   - mongodb-operator-app.yaml
-  - mongodb-instance-app.yaml
