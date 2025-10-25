@@ -8,7 +8,10 @@ spec:
   source:
     repoURL: 'https://github.com/luunomx/kubernetes-solution.git'
     targetRevision: main
-    path: k8s
+    path: k8s/helm/bulletinboard
+    helm:
+      valueFiles:
+        - ../../mongodb-values.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: bulletinboard
