@@ -2,10 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend-deployment
+  namespace: {{ .Release.Namespace }}
   labels:
     app: frontend
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount.frontend }}
   selector:
     matchLabels:
       app: frontend
@@ -16,9 +17,19 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/luunomx/bulletinboard-frontend:latest
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           ports:
-            - containerPort: 80
+            - containerPort: {{ .Values.frontend.service.targetPort }}
           env:
-            - name: VITE_API_BASE_URL
-              value: "/api"
+            {{- range .Values.frontend.env }}
+            - name: {{ .name }}
+              {{- if .value }}
+              value: "{{ .value }}"
+              {{- else if .valueFrom }}
+              valueFrom:
+{{ toYaml .valueFrom | indent 16 }}
+              {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}

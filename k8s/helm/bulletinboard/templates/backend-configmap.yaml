@@ -2,6 +2,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: backend-config
-  namespace: bulletinboard
+  namespace: {{ .Release.Namespace }}
 data:
-  MONGO_DB_NAME: "BulletinBoardDb"
+  MONGO_DB_NAME: "{{ .Values.mongodb.database }}"

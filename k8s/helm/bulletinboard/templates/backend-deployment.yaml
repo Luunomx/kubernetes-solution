@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend-deployment
-  namespace: bulletinboard
+  namespace: {{ .Release.Namespace }}
   labels:
     app: backend
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount.backend }}
   selector:
     matchLabels:
       app: backend
@@ -17,19 +17,19 @@ spec:
     spec:
       containers:
         - name: backend
-          image: 878311921064.dkr.ecr.eu-west-1.amazonaws.com/bulletinboard-backend:latest
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.backend.service.targetPort }}
           env:
-            - name: ASPNETCORE_ENVIRONMENT
-              value: "Production"
-            - name: MONGO_DB_NAME
+            {{- range .Values.backend.env }}
+            - name: {{ .name }}
+              {{- if .value }}
+              value: "{{ .value }}"
+              {{- else if .valueFrom }}
               valueFrom:
-                configMapKeyRef:
-                  name: backend-config
-                  key: MONGO_DB_NAME
-            - name: MONGO_CONNECTION_STRING
-              valueFrom:
-                secretKeyRef:
-                  name: backend-secret
-                  key: MONGO_CONNECTION_STRING
+{{ toYaml .valueFrom | indent 16 }}
+              {{- end }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}

@@ -1,6 +1,14 @@
 apiVersion: v2
-name: todo-app
-description: A Helm chart for deploying the Todo application on EKS
+name: bulletinboard
+description: A Helm chart for deploying the BulletinBoard full stack application
 type: application
 version: 0.1.0
-appVersion: "1.0"
+appVersion: "1.0.0"
+maintainers:
+  - name: Luunom
+    email: hugohemlin@hotmail.com
+keywords:
+  - bulletinboard
+  - dotnet
+  - react
+  - mongodb
