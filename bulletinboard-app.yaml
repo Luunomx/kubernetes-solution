@@ -11,7 +11,7 @@ spec:
     path: k8s/helm/bulletinboard
     helm:
       valueFiles:
-        - ../../mongodb-values.yaml
+        - ../mongodb-values.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: bulletinboard
