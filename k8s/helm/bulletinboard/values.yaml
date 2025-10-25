@@ -1,0 +1,28 @@
+replicaCount: 2
+
+image:
+  repository: <aws_account_id>.dkr.ecr.eu-west-1.amazonaws.com/todoapp
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 80
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+env:
+  - name: ASPNETCORE_ENVIRONMENT
+    value: "Production"
+  - name: ConnectionStrings__DefaultConnection
+    valueFrom:
+      secretKeyRef:
+        name: todo-app-secrets
+        key: db-connection

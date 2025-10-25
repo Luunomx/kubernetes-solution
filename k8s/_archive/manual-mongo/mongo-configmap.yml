@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-configmap
+  namespace: bulletinboard
+data:
+  database_name: BulletinBoardDb
