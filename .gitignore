@@ -74,10 +74,9 @@ webapp/appsettings.Development.json
 webapp/appsettings.Local.json
 
 # =========================
-# Kubernetes / Terraform / Secrets
+# Terraform / Secrets
 # =========================
 /secrets/
-/k8s/
 /terraform.tfstate
 /terraform.tfstate.backup
 *.tfvars

@@ -42,6 +42,10 @@ resource "aws_eks_cluster" "this" {
     security_group_ids = var.sg_ids
   }
 
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster_AmazonEKSClusterPolicy,
     aws_iam_role_policy_attachment.eks_cluster_AmazonEKSServicePolicy
@@ -98,7 +102,7 @@ resource "aws_eks_node_group" "this" {
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = var.subnet_ids
 
-  instance_types = ["t3.medium", "t3.small", "t3.large"]
+  instance_types = ["t3.small"]
   ami_type       = "AL2023_x86_64_STANDARD"
 
   scaling_config {
@@ -193,42 +197,4 @@ provider "kubernetes" {
   host                   = data.aws_eks_cluster.cluster.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
   token                  = data.aws_eks_cluster_auth.cluster.token
-}
-
-################################################
-# aws-auth ConfigMap via Terraform
-################################################
-
-resource "kubernetes_config_map" "aws_auth" {
-  depends_on = [
-    aws_eks_node_group.this
-  ]
-
-  metadata {
-    name      = "aws-auth"
-    namespace = "kube-system"
-  }
-
-  data = {
-    mapRoles = yamlencode([
-      {
-        rolearn  = aws_iam_role.eks_node_role.arn
-        username = "system:node:{{EC2PrivateDNSName}}"
-        groups   = ["system:bootstrappers", "system:nodes"]
-      },
-      {
-        rolearn  = aws_iam_role.eks_cluster_role.arn
-        username = "cluster-admin"
-        groups   = ["system:masters"]
-      }
-    ])
-
-    mapUsers = yamlencode([
-      {
-        userarn  = "arn:aws:iam::878311921064:user/LuunomEC2Admin"
-        username = "cluster-admin"
-        groups   = ["system:masters"]
-      }
-    ])
-  }
 }
