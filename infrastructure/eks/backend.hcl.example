@@ -1,0 +1,3 @@
+bucket         = "replace-with-your-terraform-state-bucket"
+dynamodb_table = "replace-with-your-terraform-lock-table"
+region         = "eu-west-1"

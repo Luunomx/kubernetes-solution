@@ -1,0 +1,138 @@
+# Number of replicas for backend and frontend
+replicaCount:
+  backend: 1
+  frontend: 1
+
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+# Backend configuration
+backend:
+  image:
+    repository: ghcr.io/luunomx/bulletinboard-backend
+    tag: ecc484a0c96babc14e854ca2062bb316e14e9866
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  env:
+    - name: ASPNETCORE_ENVIRONMENT
+      value: "Production"
+    - name: POST_STORAGE
+      value: "mongodb"
+    - name: CORS_ALLOWED_ORIGINS
+      value: "http://bulletinboard.local"
+
+  # Set enabled=true only when a shared Redis instance is available. This is
+  # required when backend replicas are increased above one.
+  redis:
+    enabled: false
+    existingSecret: bulletinboard-redis
+    connectionStringKey: connection-string
+
+  # Protect destructive endpoints in hosted environments. Leave disabled for
+  # the open local demo, or provide RESET_API_KEY through a Kubernetes Secret.
+  resetAuth:
+    enabled: false
+    existingSecret: bulletinboard-admin
+    key: reset-api-key
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+
+# Frontend configuration
+frontend:
+  image:
+    repository: ghcr.io/luunomx/bulletinboard-frontend
+    tag: ecc484a0c96babc14e854ca2062bb316e14e9866
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+
+  env:
+    - name: VITE_API_BASE_URL
+      value: "/api"
+
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 150m
+      memory: 128Mi
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+
+# MongoDB connection info. MongoDB is managed by the Community Operator in
+# gitops/mongodb and the referenced Secret is provisioned externally.
+mongodb:
+  existingSecret: mongo-root-secret
+  usernameKey: username
+  passwordKey: password
+  connectionSecret: mongodb-connection
+  connectionStringKey: connectionString.standard
+  database: BulletinBoardDb
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  host: bulletinboard.local
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: bulletinboard-tls
+
+autoscaling:
+  backend:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+  frontend:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+
+podDisruptionBudget:
+  backend:
+    enabled: false
+    minAvailable: 1
+  frontend:
+    enabled: false
+    minAvailable: 1
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+
+scheduling:
+  topologySpreadConstraints: []

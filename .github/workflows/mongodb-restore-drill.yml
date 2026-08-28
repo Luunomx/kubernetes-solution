@@ -1,0 +1,94 @@
+name: MongoDB restore drill
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: bulletinboard-mongodb-restore-drill
+  cancel-in-progress: false
+
+jobs:
+  restore-drill:
+    name: Verify the newest MongoDB backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+      TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+      TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate required deployment settings
+        run: |
+          set -eu
+          test -n "$AWS_ROLE_ARN" || { echo "AWS_ROLE_ARN is required." >&2; exit 1; }
+          test -n "$TF_STATE_BUCKET" || { echo "TF_STATE_BUCKET is required." >&2; exit 1; }
+          test -n "$TF_LOCK_TABLE" || { echo "TF_LOCK_TABLE is required." >&2; exit 1; }
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: bulletinboard-restore-drill
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Read the backup bucket from Terraform state
+        run: |
+          set -eu
+          terraform -chdir=infrastructure/eks init -input=false -reconfigure \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
+            -backend-config="region=${AWS_REGION}"
+          backup_bucket="$(terraform -chdir=infrastructure/eks output -raw mongodb_backup_bucket_name)"
+          test -n "$backup_bucket" || {
+            echo "MongoDB backups are disabled or the Terraform output is empty." >&2
+            exit 1
+          }
+          cluster_name="$(terraform -chdir=infrastructure/eks output -raw eks_cluster_name)"
+          test -n "$cluster_name" || {
+            echo "The EKS cluster name is missing from Terraform state." >&2
+            exit 1
+          }
+          echo "BACKUP_BUCKET=$backup_bucket" >> "$GITHUB_ENV"
+          echo "EKS_CLUSTER_NAME=$cluster_name" >> "$GITHUB_ENV"
+
+      - name: Start the suspended restore drill
+        run: |
+          set -eu
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER_NAME"
+          configured_bucket="$(kubectl -n bulletinboard get configmap mongodb-backup-config -o jsonpath='{.data.BACKUP_BUCKET}')"
+          test "$configured_bucket" = "$BACKUP_BUCKET" || {
+            echo "The cluster backup configuration does not match Terraform state." >&2
+            exit 1
+          }
+          job_name="mongodb-restore-drill-${GITHUB_RUN_ID}"
+          kubectl -n bulletinboard create job "$job_name" \
+            --from=cronjob/mongodb-restore-drill
+          echo "RESTORE_JOB_NAME=$job_name" >> "$GITHUB_ENV"
+
+      - name: Wait for restore verification
+        run: |
+          set -eu
+          if ! kubectl -n bulletinboard wait \
+            --for=condition=complete "job/${RESTORE_JOB_NAME}" --timeout=30m; then
+            kubectl -n bulletinboard logs "job/${RESTORE_JOB_NAME}" --all-containers=true || true
+            exit 1
+          fi
+          kubectl -n bulletinboard logs "job/${RESTORE_JOB_NAME}" --all-containers=true

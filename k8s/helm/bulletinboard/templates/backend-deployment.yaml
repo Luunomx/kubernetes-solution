@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: backend
+spec:
+  replicas: {{ .Values.replicaCount.backend }}
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduling.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          {{- with .Values.backend.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.backend.service.targetPort }}
+          env:
+            {{- toYaml .Values.backend.env | nindent 12 }}
+            - name: MONGO_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mongodb.connectionSecret }}
+                  key: {{ .Values.mongodb.connectionStringKey }}
+            {{- if .Values.backend.redis.enabled }}
+            - name: REDIS_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.redis.existingSecret }}
+                  key: {{ .Values.backend.redis.connectionStringKey }}
+            {{- end }}
+            {{- if .Values.backend.resetAuth.enabled }}
+            - name: RESET_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.backend.resetAuth.existingSecret }}
+                  key: {{ .Values.backend.resetAuth.key }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: {{ .Values.backend.service.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: {{ .Values.backend.service.targetPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}

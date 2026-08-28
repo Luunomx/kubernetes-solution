@@ -1,0 +1,9 @@
+# Optional local Helm overrides.
+# Keep real credentials in a Kubernetes Secret or a secret manager, never here.
+mongodb:
+  existingSecret: mongo-root-secret
+  usernameKey: username
+  passwordKey: password
+  connectionSecret: mongodb-connection
+  connectionStringKey: connectionString.standard
+  database: BulletinBoardDb

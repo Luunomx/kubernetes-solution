@@ -1,0 +1,14 @@
+apiVersion: v2
+name: bulletinboard
+description: A Helm chart for deploying the BulletinBoard application workloads
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Project maintainers
+    email: maintainers@example.com
+keywords:
+  - bulletinboard
+  - dotnet
+  - react
+  - mongodb

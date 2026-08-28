@@ -1,0 +1,66 @@
+region          = "eu-west-1"
+name            = "bulletinboard"
+cluster_version = "1.36"
+
+# Keep this false for the low-cost demo. Set true in the production example
+# after supplying the required external dependencies and environment values.
+deployment_profile = "demo"
+production_profile  = false
+
+# Optional: leave null to use the current AWS identity.
+terraform_assume_role_arn = null
+
+vpc_cidr              = "10.0.0.0/16"
+subnet_a_cidr          = "10.0.1.0/24"
+subnet_b_cidr          = "10.0.2.0/24"
+private_subnet_a_cidr = "10.0.101.0/24"
+private_subnet_b_cidr = "10.0.102.0/24"
+
+# Terraform creates the secret container, but never writes its value.
+mongodb_secret_name   = "bulletinboard/mongodb"
+create_mongodb_secret = true
+
+# Optional off-cluster backup and manual restore drill.
+enable_mongodb_backup         = false
+mongodb_backup_bucket_name    = null
+mongodb_backup_retention_days = 30
+
+# Optional Argo CD Notifications webhook configuration. Create the
+# argocd-notifications-secret separately with a webhook-url value first.
+enable_argocd_notifications = false
+
+# Optional production observability profile. This installs Prometheus,
+# Grafana, Alertmanager, Loki, Alloy and Tempo through Argo CD. Loki and
+# Tempo use private encrypted S3 buckets with dedicated IRSA roles.
+enable_observability              = false
+observability_logs_bucket_name    = null
+observability_traces_bucket_name  = null
+observability_retention_days      = 30
+
+# Optional shared Redis/Valkey connection Secret for multi-replica WebSockets.
+enable_redis_realtime = false
+redis_secret_name     = "bulletinboard-redis"
+
+# Optional Alertmanager delivery. Create the Secret in the observability
+# namespace before enabling this setting.
+enable_alertmanager_notifications = false
+alertmanager_secret_name          = "alertmanager-webhook"
+
+# Optional Route53 DNS-01 TLS automation through cert-manager.
+enable_cert_manager_tls = false
+route53_hosted_zone_id  = null
+tls_host                = null
+acme_email              = null
+
+# Bootstrap Argo CD and the GitOps root application after EKS is ready.
+bootstrap_argocd      = true
+gitops_repository_url = "https://github.com/luunomx/kubernetes-solution.git"
+gitops_revision       = "main"
+
+# Optional EKS hardening controls. The production example enables these.
+enable_eks_secrets_encryption       = false
+cluster_endpoint_private_access     = true
+cluster_endpoint_public_access      = true
+cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
+cluster_enabled_log_types           = []
+cluster_access_entries              = {}

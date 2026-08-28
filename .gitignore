@@ -1,0 +1,77 @@
+# Operating systems and editors
+.DS_Store
+Thumbs.db
+desktop.ini
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.swp
+*.swo
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+.aws/credentials
+.aws/config
+.kube/
+**/kubeconfig
+**/secrets/
+**/*secret*.local.yaml
+**/*secret*.local.yml
+*.pem
+*.ppk
+*.key
+
+# Logs and temporary files
+*.log
+*.pid
+*.seed
+*.bak
+*.tmp
+*.old
+*.retry
+
+# Build output and caches
+bin/
+obj/
+out/
+build/
+dist/
+coverage/
+node_modules/
+__pycache__/
+.pytest_cache/
+.cache/
+.vite/
+
+# Docker and local databases
+docker-data/
+volumes/
+mongodb-data/
+*.tar
+docker-compose.override.yml
+
+# Terraform state, plans, variables, and generated provider directories
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.*
+**/tfplan
+*.tfvars
+*.tfvars.json
+**/backend.local.hcl
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Archives and generated packages
+*.zip
+*.gz

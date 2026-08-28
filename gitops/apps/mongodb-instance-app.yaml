@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bulletinboard-mongodb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/luunomx/kubernetes-solution.git
+    targetRevision: main
+    path: gitops/mongodb
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bulletinboard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

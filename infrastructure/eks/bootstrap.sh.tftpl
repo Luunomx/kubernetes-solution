@@ -1,0 +1,1053 @@
+set -eu
+
+command -v aws >/dev/null 2>&1 || { echo "aws CLI is required for EKS bootstrap." >&2; exit 1; }
+command -v kubectl >/dev/null 2>&1 || { echo "kubectl is required for EKS bootstrap." >&2; exit 1; }
+
+aws eks update-kubeconfig \
+  --region '${region}' \
+  --name '${cluster_name}' \
+  --alias '${cluster_name}'
+
+# Terraform owns this service account because its IRSA role ARN is environment-specific.
+kubectl apply -f - <<'MANIFEST'
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: external-secrets
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-secrets
+  namespace: external-secrets
+  annotations:
+    eks.amazonaws.com/role-arn: '${external_secrets_arn}'
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+%{ if cert_manager_role_arn != "" ~}
+  annotations:
+    eks.amazonaws.com/role-arn: '${cert_manager_role_arn}'
+%{ endif ~}
+MANIFEST
+
+%{ if enable_observability ~}
+# Observability uses dedicated IRSA service accounts. Grafana's admin Secret is
+# generated once in-cluster so the password is never committed to Git or state.
+kubectl create namespace observability --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f - <<'MANIFEST'
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: loki
+  namespace: observability
+  annotations:
+    eks.amazonaws.com/role-arn: '${observability_loki_role_arn}'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tempo
+  namespace: observability
+  annotations:
+    eks.amazonaws.com/role-arn: '${observability_tempo_role_arn}'
+MANIFEST
+
+if ! kubectl -n observability get secret grafana-admin >/dev/null 2>&1; then
+  command -v openssl >/dev/null 2>&1 || { echo "openssl is required to generate the Grafana admin Secret." >&2; exit 1; }
+  kubectl -n observability create secret generic grafana-admin \
+    --from-literal=admin-user=admin \
+    --from-literal=admin-password="$(openssl rand -hex 24)"
+fi
+%{ if enable_alertmanager_notifications ~}
+kubectl -n observability get secret '${alertmanager_secret_name}' >/dev/null 2>&1 || {
+  echo "${alertmanager_secret_name} with a webhook-url key is required before enabling Alertmanager notifications." >&2
+  exit 1
+}
+%{ endif ~}
+%{ else ~}
+%{ if enable_alertmanager_notifications ~}
+echo "Alertmanager notifications require enable_observability=true." >&2
+exit 1
+%{ endif ~}
+# Keep feature disablement non-destructive: Argo application deletion removes
+# managed workloads, while the namespace and generated admin Secret remain for
+# a later re-enable or an operator-controlled cleanup.
+kubectl -n argocd delete application observability-alloy observability-loki observability-tempo observability-prometheus observability --ignore-not-found --cascade=foreground || true
+%{ endif ~}
+
+kubectl apply -k '${repository_root}/gitops/bootstrap'
+kubectl wait --for=condition=Established --timeout=5m crd/applications.argoproj.io
+
+%{ if enable_argocd_notifications ~}
+# Argo CD ships the Notifications controller in the standard installation.
+# The webhook URL remains in a Kubernetes Secret and never enters Git/Terraform.
+kubectl -n argocd get secret argocd-notifications-secret >/dev/null 2>&1 || {
+  echo "Create argocd-notifications-secret with a webhook-url key before enabling notifications." >&2
+  exit 1
+}
+kubectl apply -f - <<'MANIFEST'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  service.webhook.bulletinboard-events: |
+    url: $webhook-url
+  template.app-sync-status: |
+    webhook:
+      bulletinboard-events:
+        method: POST
+        body: |
+          {
+            "application": "{{.app.metadata.name}}",
+            "health": "{{.app.status.health.status}}",
+            "sync": "{{.app.status.sync.status}}",
+            "revision": "{{.app.status.sync.revision}}"
+          }
+  trigger.on-sync-succeeded: |
+    - description: Application is synced and healthy
+      oncePer: app.status.sync.revision
+      send: [app-sync-status]
+      when: app.status.operationState.phase == 'Succeeded' and app.status.health.status == 'Healthy'
+  trigger.on-sync-failed: |
+    - description: Application sync failed
+      send: [app-sync-status]
+      when: app.status.operationState.phase in ['Error', 'Failed']
+  trigger.on-health-degraded: |
+    - description: Application health degraded
+      send: [app-sync-status]
+      when: app.status.health.status == 'Degraded'
+MANIFEST
+%{ else ~}
+kubectl -n argocd delete configmap argocd-notifications-cm --ignore-not-found
+%{ endif ~}
+
+# Generate the root application here so forks and branches do not require a Git edit.
+kubectl apply -f - <<'MANIFEST'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: '${gitops_repository}'
+    targetRevision: '${gitops_revision}'
+    path: gitops/apps
+    kustomize: {}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      name: bulletinboard
+      namespace: argocd
+      jsonPointers:
+        - /spec/source/helm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+MANIFEST
+
+%{ if !enable_observability && !enable_cert_manager_tls ~}
+# The root app intentionally ignores environment-specific Helm values. Clear
+# the previous observability override when both optional app overlays are off.
+kubectl -n argocd patch application bulletinboard --type=json \
+  -p='[{"op":"remove","path":"/spec/source/helm"}]' 2>/dev/null || true
+%{ endif ~}
+
+attempts=0
+while ! kubectl get crd externalsecrets.external-secrets.io >/dev/null 2>&1; do
+  attempts=$((attempts + 1))
+  if [ "$attempts" -ge 120 ]; then
+    echo "External Secrets Operator CRD did not become available in time." >&2
+    exit 1
+  fi
+  sleep 5
+done
+kubectl wait --for=condition=Established --timeout=5m crd/externalsecrets.external-secrets.io
+
+kubectl create namespace bulletinboard --dry-run=client -o yaml | kubectl apply -f -
+%{ if production_profile ~}
+# The production application profile protects destructive actions without
+# placing the reset key in Git or Terraform state. The secret is generated only
+# on first bootstrap so a re-run does not invalidate the operator's key.
+if ! kubectl -n bulletinboard get secret bulletinboard-admin >/dev/null 2>&1; then
+  command -v openssl >/dev/null 2>&1 || { echo "openssl is required to generate the reset Secret." >&2; exit 1; }
+  kubectl -n bulletinboard create secret generic bulletinboard-admin \
+    --from-literal=reset-api-key="$(openssl rand -hex 24)"
+fi
+%{ endif ~}
+
+%{ if production_profile ~}
+kubectl label namespace bulletinboard \
+  pod-security.kubernetes.io/audit=restricted \
+  pod-security.kubernetes.io/warn=restricted --overwrite
+
+kubectl apply -f - <<'MANIFEST'
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: bulletinboard-compute
+  namespace: bulletinboard
+spec:
+  hard:
+    pods: "30"
+    requests.cpu: "4"
+    requests.memory: 8Gi
+    limits.cpu: "8"
+    limits.memory: 16Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: bulletinboard-defaults
+  namespace: bulletinboard
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      default:
+        cpu: 500m
+        memory: 512Mi
+MANIFEST
+%{ endif ~}
+
+kubectl apply -f - <<'MANIFEST'
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterSecretStore
+metadata:
+  name: aws-secrets-store
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: '${region}'
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: external-secrets
+            namespace: external-secrets
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: mongo-root-secret
+  namespace: bulletinboard
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: aws-secrets-store
+    kind: ClusterSecretStore
+  target:
+    name: mongo-root-secret
+    creationPolicy: Owner
+    template:
+      type: Opaque
+  data:
+    - secretKey: username
+      remoteRef:
+        key: '${mongodb_secret_name}'
+        property: username
+    - secretKey: password
+      remoteRef:
+        key: '${mongodb_secret_name}'
+        property: password
+MANIFEST
+
+%{ if enable_cert_manager_tls || enable_observability ~}
+%{ if enable_cert_manager_tls ~}
+cert_manager_attempts=0
+while ! kubectl get crd clusterissuers.cert-manager.io >/dev/null 2>&1; do
+  cert_manager_attempts=$((cert_manager_attempts + 1))
+  if [ "$cert_manager_attempts" -ge 120 ]; then
+    echo "cert-manager CRD did not become available in time." >&2
+    exit 1
+  fi
+  sleep 5
+done
+kubectl wait --for=condition=Established --timeout=5m crd/clusterissuers.cert-manager.io
+
+kubectl apply -f - <<'MANIFEST'
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    email: '${acme_email}'
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+    solvers:
+      - dns01:
+          route53:
+            region: '${region}'
+            hostedZoneID: '${route53_hosted_zone_id}'
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: bulletinboard-tls
+  namespace: bulletinboard
+spec:
+  secretName: bulletinboard-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - '${tls_host}'
+MANIFEST
+%{ endif ~}
+
+app_attempts=0
+while ! kubectl -n argocd get application bulletinboard >/dev/null 2>&1; do
+  app_attempts=$((app_attempts + 1))
+  if [ "$app_attempts" -ge 120 ]; then
+    echo "BulletinBoard Argo CD Application did not become available in time." >&2
+    exit 1
+  fi
+  sleep 5
+done
+
+# Keep the environment-specific hostname out of Git while letting Argo manage the application.
+kubectl apply -f - <<'MANIFEST'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bulletinboard
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-sync-succeeded.bulletinboard-events: ""
+    notifications.argoproj.io/subscribe.on-sync-failed.bulletinboard-events: ""
+    notifications.argoproj.io/subscribe.on-health-degraded.bulletinboard-events: ""
+spec:
+  project: default
+  source:
+    repoURL: '${gitops_repository}'
+    targetRevision: '${gitops_revision}'
+    path: k8s/helm/bulletinboard
+    helm:
+      values: |
+%{ if production_profile || enable_redis_realtime ~}
+        replicaCount:
+%{ if production_profile ~}
+          frontend: 2
+%{ endif ~}
+%{ if enable_redis_realtime ~}
+          backend: 2
+%{ endif ~}
+%{ endif ~}
+%{ if production_profile || enable_redis_realtime ~}
+        backend:
+%{ if production_profile ~}
+          resetAuth:
+            enabled: true
+            existingSecret: bulletinboard-admin
+            key: reset-api-key
+%{ endif ~}
+%{ if enable_redis_realtime ~}
+          redis:
+            enabled: true
+            existingSecret: '${redis_secret_name}'
+            connectionStringKey: connection-string
+%{ endif ~}
+%{ endif ~}
+%{ if production_profile || enable_redis_realtime ~}
+        autoscaling:
+%{ if production_profile ~}
+          frontend:
+            enabled: true
+            minReplicas: 2
+            maxReplicas: 4
+            targetCPUUtilizationPercentage: 70
+%{ endif ~}
+%{ if enable_redis_realtime ~}
+          backend:
+            enabled: true
+            minReplicas: 2
+            maxReplicas: 6
+            targetCPUUtilizationPercentage: 70
+%{ endif ~}
+        podDisruptionBudget:
+%{ if production_profile ~}
+          frontend:
+            enabled: true
+            minAvailable: 1
+%{ endif ~}
+%{ if enable_redis_realtime ~}
+          backend:
+            enabled: true
+            minAvailable: 1
+%{ endif ~}
+%{ endif ~}
+%{ if enable_cert_manager_tls ~}
+        ingress:
+          enabled: true
+          host: '${tls_host}'
+          tls:
+            enabled: true
+            secretName: bulletinboard-tls
+%{ endif ~}
+%{ if enable_observability ~}
+        monitoring:
+          serviceMonitor:
+            enabled: true
+            interval: 30s
+%{ endif ~}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bulletinboard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+MANIFEST
+%{ endif ~}
+
+%{ if enable_observability ~}
+# Environment-specific observability Applications are generated here because
+# bucket names and IRSA role ARNs belong to the target AWS account, not Git.
+kubectl apply -f - <<'MANIFEST'
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: '${gitops_repository}'
+    targetRevision: '${gitops_revision}'
+    path: gitops/observability
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-prometheus
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 88.6.1
+    helm:
+      releaseName: kube-prometheus-stack
+      values: |
+        crds:
+          enabled: true
+        defaultRules:
+          create: true
+        kubeControllerManager:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        grafana:
+          enabled: true
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
+          persistence:
+            enabled: true
+            storageClassName: gp3
+            size: 10Gi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          service:
+            type: ClusterIP
+          sidecar:
+            dashboards:
+              enabled: true
+              searchNamespace: ALL
+            datasources:
+              enabled: true
+          datasources:
+            datasources.yaml:
+              apiVersion: 1
+              datasources:
+                - name: Prometheus
+                  uid: prometheus
+                  type: prometheus
+                  access: proxy
+                  url: http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090
+                  isDefault: true
+                - name: Loki
+                  uid: loki
+                  type: loki
+                  access: proxy
+                  url: http://loki-gateway.observability.svc.cluster.local
+                  jsonData:
+                    maxLines: 1000
+                - name: Tempo
+                  uid: tempo
+                  type: tempo
+                  access: proxy
+                  url: http://tempo.observability.svc.cluster.local:3200
+                  jsonData:
+                    tracesToLogs:
+                      datasourceUid: loki
+                      tags:
+                        - namespace
+                        - pod
+                        - container
+                    tracesToMetrics:
+                      datasourceUid: prometheus
+                    serviceMap:
+                      datasourceUid: prometheus
+        prometheus:
+          enabled: true
+          prometheusSpec:
+            replicas: 2
+            retention: 15d
+            retentionSize: 15GB
+            externalLabels:
+              cluster: bulletinboard
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp3
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 20Gi
+        alertmanager:
+          enabled: true
+%{ if enable_alertmanager_notifications ~}
+          config:
+            global:
+              resolve_timeout: 5m
+            route:
+              group_by: ["namespace", "alertname"]
+              group_wait: 30s
+              group_interval: 5m
+              repeat_interval: 12h
+              receiver: bulletinboard-webhook
+            receivers:
+              - name: bulletinboard-webhook
+                webhook_configs:
+                  - url_file: /etc/alertmanager/secrets/${alertmanager_secret_name}/webhook-url
+                    send_resolved: true
+%{ endif ~}
+          alertmanagerSpec:
+%{ if enable_alertmanager_notifications ~}
+            secrets:
+              - '${alertmanager_secret_name}'
+%{ endif ~}
+            replicas: 2
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  storageClassName: gp3
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
+        additionalPrometheusRulesMap:
+          bulletinboard-rules:
+            groups:
+              - name: bulletinboard.availability
+                rules:
+                  - alert: BulletinBoardBackendDown
+                    expr: sum(up{namespace="bulletinboard",service="backend-service"}) < 1
+                    for: 5m
+                    labels:
+                      severity: critical
+                      service: bulletinboard
+                    annotations:
+                      summary: BulletinBoard backend is unavailable
+                      description: No BulletinBoard backend target has been up for five minutes.
+                  - alert: BulletinBoardBackendNotReady
+                    expr: kube_deployment_status_replicas_available{namespace="bulletinboard",deployment="backend-deployment"} < 1
+                    for: 10m
+                    labels:
+                      severity: warning
+                      service: bulletinboard
+                    annotations:
+                      summary: BulletinBoard backend has no available replicas
+                      description: The backend deployment has had no available replicas for ten minutes.
+                  - alert: BulletinBoardWebSocketClientsDropped
+                    expr: sum(bulletinboard_websocket_clients) == 0 and sum(up{namespace="bulletinboard",service="backend-service"}) > 0
+                    for: 15m
+                    labels:
+                      severity: info
+                      service: bulletinboard
+                    annotations:
+                      summary: BulletinBoard has no connected WebSocket clients
+                      description: This is informational and may be normal during periods without active users.
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 7.3.0
+    helm:
+      releaseName: loki
+      values: |
+        deploymentMode: SimpleScalable
+        loki:
+          auth_enabled: false
+          commonConfig:
+            replication_factor: 2
+          schemaConfig:
+            configs:
+              - from: 2024-04-01
+                store: tsdb
+                object_store: s3
+                schema: v13
+                index:
+                  prefix: loki_index_
+                  period: 24h
+          storage:
+            type: s3
+            bucketNames:
+              chunks: '${observability_logs_bucket}'
+              ruler: '${observability_logs_bucket}'
+              admin: '${observability_logs_bucket}'
+            s3:
+              region: '${region}'
+              s3ForcePathStyle: false
+              insecure: false
+          limits_config:
+            retention_period: ${observability_retention_days}d
+        serviceAccount:
+          create: false
+          name: loki
+        minio:
+          enabled: false
+        test:
+          enabled: false
+        lokiCanary:
+          enabled: false
+        read:
+          replicas: 2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+        write:
+          replicas: 2
+          persistence:
+            volumeClaimsEnabled: true
+            storageClass: gp3
+            size: 10Gi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+        backend:
+          replicas: 2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+        gateway:
+          replicas: 2
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-tempo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    targetRevision: 1.24.3
+    helm:
+      releaseName: tempo
+      values: |
+        replicas: 2
+        tempo:
+          reportingEnabled: false
+          retention: ${observability_retention_days * 24}h
+          storage:
+            trace:
+              backend: s3
+              s3:
+                bucket: '${observability_traces_bucket}'
+                endpoint: s3.${region}.amazonaws.com
+                region: '${region}'
+                insecure: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+        serviceAccount:
+          create: false
+          name: tempo
+        serviceMonitor:
+          enabled: true
+          interval: 30s
+        persistence:
+          enabled: true
+          storageClassName: gp3
+          size: 10Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: observability-alloy
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: alloy
+    targetRevision: 1.12.1
+    helm:
+      releaseName: alloy
+      values: |
+        alloy:
+          enableReporting: false
+          configMap:
+            create: true
+            content: |
+              discovery.kubernetes "pods" {
+                role = "pod"
+              }
+
+              discovery.relabel "pod_logs" {
+                targets = discovery.kubernetes.pods.targets
+
+                rule {
+                  source_labels = ["__meta_kubernetes_namespace"]
+                  target_label  = "namespace"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_name"]
+                  target_label  = "pod"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_container_name"]
+                  target_label  = "container"
+                }
+                rule {
+                  source_labels = ["__meta_kubernetes_pod_node_name"]
+                  target_label  = "node"
+                }
+              }
+
+              loki.source.kubernetes "pod_logs" {
+                targets    = discovery.relabel.pod_logs.output
+                forward_to = [loki.write.default.receiver]
+              }
+
+              loki.write "default" {
+                endpoint {
+                  url = "http://loki-gateway.observability.svc.cluster.local/loki/api/v1/push"
+                }
+                external_labels = {
+                  cluster = "bulletinboard"
+                }
+              }
+
+              otelcol.receiver.otlp "default" {
+                grpc {
+                  endpoint = "0.0.0.0:4317"
+                }
+                http {
+                  endpoint = "0.0.0.0:4318"
+                }
+                output {
+                  traces = [otelcol.processor.batch.default.input]
+                }
+              }
+
+              otelcol.processor.batch "default" {
+                output {
+                  traces = [otelcol.exporter.otlp.tempo.input]
+                }
+              }
+
+              otelcol.exporter.otlp "tempo" {
+                client {
+                  endpoint = "tempo.observability.svc.cluster.local:4317"
+                  tls {
+                    insecure = true
+                  }
+                }
+              }
+          extraPorts:
+            - name: otlp-grpc
+              port: 4317
+              targetPort: 4317
+              protocol: TCP
+              appProtocol: grpc
+            - name: otlp-http
+              port: 4318
+              targetPort: 4318
+              protocol: TCP
+        controller:
+          type: daemonset
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+        serviceMonitor:
+          enabled: true
+          interval: 30s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+MANIFEST
+%{ endif ~}
+
+%{ if enable_mongodb_backup ~}
+# Backups live outside the cluster. The bucket is private, encrypted and
+# versioned; the Kubernetes jobs receive only the bucket-scoped IRSA role.
+kubectl apply -f - <<'MANIFEST'
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mongodb-backup
+  namespace: bulletinboard
+  annotations:
+    eks.amazonaws.com/role-arn: '${mongodb_backup_role_arn}'
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-backup-config
+  namespace: bulletinboard
+data:
+  BACKUP_BUCKET: '${mongodb_backup_bucket}'
+  AWS_REGION: '${region}'
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongodb-backup
+  namespace: bulletinboard
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: mongodb-backup
+          restartPolicy: OnFailure
+          initContainers:
+            - name: mongodump
+              image: mongo:7.0.11
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MONGO_CONNECTION_STRING
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongodb-connection
+                      key: connectionString.standard
+              command:
+                - /bin/sh
+                - -c
+              args:
+                - >-
+                  set -eu;
+                  mongodump --uri "$MONGO_CONNECTION_STRING"
+                  --archive="/backups/bulletinboard-$(date -u +%Y%m%dT%H%M%SZ).archive.gz"
+                  --gzip --oplog
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          containers:
+            - name: upload
+              image: public.ecr.aws/aws-cli/aws-cli:2.27.20
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - configMapRef:
+                    name: mongodb-backup-config
+              command:
+                - /bin/sh
+                - -c
+              args:
+                - >-
+                  set -eu;
+                  uploaded=false;
+                  for file in /backups/bulletinboard-*.archive.gz; do
+                    test -f "$file" || continue;
+                    uploaded=true;
+                    aws s3 cp "$file" "s3://$BACKUP_BUCKET/$(basename "$file")" --sse AES256;
+                  done;
+                  test "$uploaded" = true
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: backup-storage
+              emptyDir: {}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongodb-restore-drill
+  namespace: bulletinboard
+spec:
+  schedule: "0 0 1 1 *"
+  suspend: true
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: mongodb-backup
+          restartPolicy: Never
+          initContainers:
+            - name: download-latest-backup
+              image: public.ecr.aws/aws-cli/aws-cli:2.27.20
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - configMapRef:
+                    name: mongodb-backup-config
+              command:
+                - /bin/sh
+                - -c
+              args:
+                - >-
+                  set -eu;
+                  key="$(aws s3api list-objects-v2 --bucket "$BACKUP_BUCKET"
+                  --prefix bulletinboard-
+                  --query 'sort_by(Contents, &LastModified)[-1].Key'
+                  --output text)";
+                  test -n "$key" && test "$key" != "None" ||
+                  { echo "No MongoDB backup was found in S3." >&2; exit 1; };
+                  aws s3 cp "s3://$BACKUP_BUCKET/$key" /backups/restore.archive.gz
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          containers:
+            - name: restore-verify
+              image: mongo:7.0.11
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: MONGO_CONNECTION_STRING
+                  valueFrom:
+                    secretKeyRef:
+                      name: mongodb-connection
+                      key: connectionString.standard
+              command:
+                - /bin/sh
+                - -c
+              args:
+                - >-
+                  set -eu;
+                  mongorestore --uri "$MONGO_CONNECTION_STRING"
+                  --archive=/backups/restore.archive.gz --gzip --oplogReplay --dryRun --verbose
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          volumes:
+            - name: backup-storage
+              emptyDir: {}
+MANIFEST
+%{ endif ~}

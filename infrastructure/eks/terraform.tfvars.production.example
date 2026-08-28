@@ -1,0 +1,66 @@
+# Copy this file to an ignored terraform.tfvars file and replace every
+# environment-specific placeholder before an approved production run.
+
+region          = "eu-west-1"
+name            = "bulletinboard"
+cluster_version = "1.36"
+
+deployment_profile = "production"
+production_profile  = true
+
+terraform_assume_role_arn = null
+
+vpc_cidr              = "10.0.0.0/16"
+subnet_a_cidr         = "10.0.1.0/24"
+subnet_b_cidr         = "10.0.2.0/24"
+private_subnet_a_cidr = "10.0.101.0/24"
+private_subnet_b_cidr = "10.0.102.0/24"
+
+mongodb_secret_name   = "bulletinboard/mongodb"
+create_mongodb_secret = true
+
+# TLS, backups and observability are explicit production dependencies.
+enable_cert_manager_tls = true
+route53_hosted_zone_id  = "Z00000000000000000000"
+tls_host                = "board.example.com"
+acme_email              = "platform@example.com"
+
+enable_mongodb_backup         = true
+mongodb_backup_bucket_name    = null
+mongodb_backup_retention_days = 30
+
+enable_observability             = true
+observability_logs_bucket_name   = null
+observability_traces_bucket_name = null
+observability_retention_days     = 30
+
+# Set this true only after the external Redis/Valkey Secret exists in the
+# bulletinboard namespace. It is required before scaling the backend above one.
+enable_redis_realtime = false
+redis_secret_name     = "bulletinboard-redis"
+
+# This makes the destructive reset endpoint require the generated admin Secret
+# when production_profile is enabled. Add your operator access procedure too.
+enable_argocd_notifications = true
+enable_alertmanager_notifications = true
+alertmanager_secret_name          = "alertmanager-webhook"
+
+# EKS hardening. A GitHub-hosted runner needs public API access; use a private
+# endpoint with a self-hosted runner inside the VPC when the environment allows it.
+enable_eks_secrets_encryption        = true
+cluster_endpoint_private_access      = true
+cluster_endpoint_public_access       = true
+cluster_endpoint_public_access_cidrs = ["203.0.113.10/32"] # replace with runner/VPN egress CIDR
+cluster_enabled_log_types            = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+# Replace the principal ARN and keep policy scope as narrow as operationally possible.
+cluster_access_entries = {
+  platform = {
+    principal_arn = "arn:aws:iam::123456789012:role/bulletinboard-platform-operator"
+    policy_arns   = ["arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"]
+  }
+}
+
+bootstrap_argocd      = true
+gitops_repository_url = "https://github.com/luunomx/kubernetes-solution.git"
+gitops_revision       = "main"

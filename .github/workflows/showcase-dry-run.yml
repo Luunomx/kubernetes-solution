@@ -1,0 +1,106 @@
+name: Showcase pipeline (dry run)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: showcase-dry-run
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Application checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: simple-fluid-page/package-lock.json
+
+      - name: Lint frontend
+        working-directory: simple-fluid-page
+        run: |
+          npm ci
+          npm run lint
+
+      - name: Build frontend
+        working-directory: simple-fluid-page
+        run: npm run build
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.x
+
+      - name: Test API
+        run: dotnet test tests/BulletinBoard.Tests/BulletinBoard.Tests.csproj --configuration Release
+
+  infrastructure-preview:
+    name: Infrastructure and Helm validation
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Validate EKS Terraform track
+        working-directory: infrastructure/eks
+        run: |
+          terraform init -backend=false -input=false
+          terraform fmt -check -recursive .
+          terraform validate
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint and render Helm chart
+        run: |
+          helm lint k8s/helm/bulletinboard
+          helm template bulletinboard k8s/helm/bulletinboard \
+            --set backend.image.tag=dry-run \
+            --set frontend.image.tag=dry-run \
+            --set monitoring.serviceMonitor.enabled=true > /tmp/bulletinboard-rendered.yaml
+
+      - name: Render GitOps observability resources
+        run: kubectl kustomize gitops/observability > /tmp/observability-rendered.yaml
+
+  container-build:
+    name: Build container images locally
+    needs: infrastructure-preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build backend image (no push)
+        run: docker build --tag bulletinboard-backend:dry-run ./webapp
+
+      - name: Build frontend image (no push)
+        run: docker build --tag bulletinboard-frontend:dry-run ./simple-fluid-page
+
+  delivery-preview:
+    name: Preview delivery chain
+    needs: container-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Explain the delivery steps without executing them
+        run: |
+          echo "DRY RUN: images would be published to GHCR."
+          echo "DRY RUN: Helm values would be updated with the image tag."
+          echo "DRY RUN: Argo CD would sync the GitOps applications."
+          echo "No registry login, image push, AWS API call or kubectl apply was made."

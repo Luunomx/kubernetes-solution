@@ -1,0 +1,457 @@
+/* ================================
+   BULLETIN BOARD MAIN CONTAINER
+   ================================ */
+.bulletin-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 30px;
+  min-height: 100vh;
+  padding: 40px 1rem;
+  position: relative;
+  z-index: 5;
+  color: #fff;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ================================
+   FORM CONTAINER – GLASS EFFECT
+   ================================ */
+.glass-form {
+  width: 100%;
+  max-width: 1100px;
+  min-height: min(700px, calc(100vh - 4rem));
+  position: relative;
+  padding: 40px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.glass-form .reset-chat-button {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  width: 28px !important;
+  height: 28px;
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 50%;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 1.05rem !important;
+  line-height: 1;
+  opacity: 0.55;
+}
+
+.glass-form .reset-chat-button:hover {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #fff !important;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.glass-form h2 {
+  text-align: center;
+  margin: 0 0 2px;
+  font-size: 2em;
+  font-weight: 700;
+  color: #fff;
+}
+
+.board-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  width: 100%;
+}
+
+.current-user {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.current-user strong {
+  font-weight: 700;
+}
+
+.change-name-button {
+  flex-shrink: 0;
+  padding: 6px 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background: transparent !important;
+  color: #fff !important;
+  font-size: 0.85rem !important;
+  align-self: auto !important;
+  width: auto !important;
+}
+
+.change-name-button:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: none !important;
+}
+
+/* ================================
+   FORM LAYOUT
+   ================================ */
+.bulletin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.glass-form label {
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #fff;
+}
+
+.glass-form input,
+.glass-form textarea {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 1em;
+  color: #fff;
+  outline: none;
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.2);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.glass-form input::placeholder,
+.glass-form textarea::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.bulletin-form input {
+  height: 42px;
+  line-height: 1.2;
+}
+
+/* ================================
+   BUTTON
+   ================================ */
+.glass-form button {
+  align-self: flex-start;
+  background: #ffffff;
+  border: none;
+  border-radius: 30px;
+  padding: 12px 25px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+  color: #000;
+}
+
+.glass-form button:hover {
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.send-button {
+  flex-shrink: 0;
+  align-self: flex-end !important;
+  min-width: 120px;
+  height: 42px;
+  padding: 0 20px !important;
+  font-size: 1rem !important;
+}
+
+.glass-form [role="alert"] {
+  margin: 0;
+  color: #ffe4e6;
+  font-size: 0.95rem;
+}
+
+/* ================================
+   NAME DIALOG
+   ================================ */
+.name-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(8px);
+}
+
+.name-dialog {
+  width: min(100%, 420px);
+  padding: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 18px;
+  background: rgba(42, 40, 55, 0.96);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+
+.name-dialog h3 {
+  margin: 0 0 10px;
+  font-size: 1.6rem;
+}
+
+.name-dialog > p {
+  margin: 0 0 22px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.45;
+}
+
+.name-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.name-dialog label {
+  font-weight: 600;
+}
+
+.name-dialog input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 1rem;
+}
+
+.name-dialog input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.name-dialog input:focus {
+  border-color: #70d6ff;
+  box-shadow: 0 0 0 3px rgba(112, 214, 255, 0.2);
+}
+
+.name-dialog [role="alert"] {
+  margin: 0;
+  color: #ffe4e6;
+  font-size: 0.9rem;
+}
+
+.name-dialog-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.name-dialog button {
+  flex: 1;
+  padding: 11px 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.name-dialog button:hover {
+  background: #dff7ff;
+}
+
+.name-dialog .secondary-button {
+  border-color: rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+}
+
+.name-dialog .secondary-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ================================
+   POSTS LIST
+   ================================ */
+.posts {
+  width: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  flex: 1;
+  min-height: 180px;
+  max-height: 52vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.5) transparent;
+  box-sizing: border-box;
+}
+
+/* Scrollbars för WebKit */
+.posts::-webkit-scrollbar {
+  width: 8px;
+}
+.posts::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+}
+.posts::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.no-posts {
+  text-align: center;
+  color: #fff;
+  font-weight: 500;
+  margin: auto;
+}
+
+/* ================================
+   SINGLE POST CARD
+   ================================ */
+.post {
+  width: 100%;
+  padding: 10px 4px;
+  color: #fff;
+  box-sizing: border-box;
+}
+
+.post + .post {
+  border-top: none;
+}
+
+.post-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9em;
+  margin-bottom: 4px;
+  color: #fff;
+}
+
+.post-header span {
+  margin-right: 14px;
+  white-space: nowrap;
+}
+
+.post p {
+  margin: 0;
+  font-size: 1em;
+  line-height: 1.4em;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+/* ================================
+   RESPONSIVE DESIGN
+   ================================ */
+@media (max-width: 768px) {
+  .glass-form {
+    padding: 24px 20px;
+    max-width: 100%;
+    min-height: 0;
+    border-radius: 20px;
+  }
+
+  .glass-form h2 {
+    font-size: 1.7em;
+    line-height: 1.15;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+
+  .form-group {
+    width: 100%;
+  }
+
+  .send-button {
+    align-self: stretch !important;
+    width: 100%;
+  }
+
+  .posts {
+    max-width: 100%;
+    max-height: 50vh;
+  }
+
+  .post {
+    max-width: 100%;
+  }
+
+  .board-topbar {
+    align-items: center;
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+  }
+}
+
+@media (max-width: 480px) {
+  .glass-form {
+    padding: 20px 16px;
+  }
+
+  .glass-form .reset-chat-button {
+    top: 10px;
+    left: 10px;
+  }
+
+  .board-topbar {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .glass-form h2 {
+    font-size: 1.4em;
+  }
+
+  .current-user {
+    font-size: 1rem;
+  }
+
+  .change-name-button {
+    padding: 6px 9px !important;
+    font-size: 0.8rem !important;
+  }
+
+  input,
+  textarea {
+    font-size: 0.9em;
+  }
+
+  .post {
+    font-size: 0.9em;
+    padding: 8px 2px;
+  }
+}
