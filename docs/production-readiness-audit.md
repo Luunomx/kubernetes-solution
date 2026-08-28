@@ -1,104 +1,294 @@
-# Production-readiness audit
+# Production deployment runbook
 
-**Audit date:** 2026-08-28  
-**Scope:** application code, local runtime, containers, CI/CD, Terraform, EKS bootstrap, GitOps/Helm, data protection, observability and operational controls.
+This document is the high-level, ordered plan for taking the template from a
+clean repository to a running AWS/EKS environment. It describes what must be
+prepared, what the automation does, what must be verified and what still has
+to be decided before exposing the application publicly.
 
-## Executive verdict
+No AWS account, EKS cluster or production deployment has been created from
+this repository during development. The steps below are the intended execution
+path for a future environment.
 
-This repository is now a strong **production-minded Kubernetes reference/template**. The delivery chain is coherent: a push can test, build, scan, sign and publish the images; an approved provisioning run can create or update EKS, bootstrap Argo CD and reconcile the application; and the optional observability profile adds metrics, logs, traces, dashboards and baseline alerts.
+The visual companion is
+[`deployment-flow.svg`](deployment-flow.svg). The existing
+[`architecture.svg`](architecture.svg) explains the system relationships;
+`deployment-flow.svg` explains the ordered setup path.
 
-It is **not yet a production-grade public message board** without environment-specific hardening. The application is intentionally anonymous and has no identity, authorization or moderation model. TLS, shared realtime infrastructure, backups, notifications and observability are configurable profiles rather than universal defaults. That is appropriate for a template, but each profile must be enabled and configured before an internet-facing launch.
+## 1. Choose the target profile
 
-No live AWS account or EKS cluster was available during this audit. The conclusions below are therefore based on static inspection and local render/tests; they are not a substitute for a staged deployment, load test, restore exercise and security review.
+Use one of the two supported modes:
 
-## What is implemented
+- `demo`: the smallest EKS showcase profile. It is suitable for a trusted
+  environment and keeps scale-out dependencies optional.
+- `production`: the hardened application profile. It enables non-root pods,
+  frontend redundancy, HPA/PDB settings, namespace quotas, Pod Security
+  audit/warn labels and reset-key protection.
 
-### Application and local development
+The production profile does not silently invent environment-specific values.
+TLS, off-cluster backups, observability, Alertmanager delivery and Redis are
+explicit settings because each requires a real hostname, destination, secret
+or operational decision. Start from
+[`infrastructure/eks/terraform.tfvars.production.example`](../infrastructure/eks/terraform.tfvars.production.example)
+and replace every placeholder.
 
-- ASP.NET Core 8 API with health endpoints, rate limiting, input validation and Prometheus-compatible metrics.
-- React/Vite frontend with REST and WebSocket updates.
-- In-memory storage for the local demo and MongoDB storage for persistent deployments.
-- Optional Redis Pub/Sub backplane for WebSocket fan-out when the backend is scaled beyond one replica.
-- Docker Compose path with persistent MongoDB.
-- MongoDB post IDs use an atomic counter seeded from existing data, so concurrent API replicas do not use the previous read-then-increment path.
+## 2. Prepare the external prerequisites
 
-### Delivery and infrastructure
+Before the first run, provide:
 
-- GitHub Actions frontend lint/build and .NET tests on the image workflow.
-- GHCR images tagged by commit SHA, SBOM/provenance generation, Trivy HIGH/CRITICAL scanning and keyless cosign signing.
-- GitOps promotion through Argo CD and Helm.
-- One-trigger, manually dispatched EKS workflow with GitHub OIDC, Terraform state bootstrap, production-environment approval and idempotent apply.
-- Terraform VPC, private EKS node subnets, EBS CSI, IRSA, External Secrets and optional cert-manager TLS.
-- Optional EKS KMS Secrets encryption, control-plane logs, restricted API endpoint CIDRs and API-based EKS Access Entries.
-- Production bootstrap guardrails: non-root workloads, frontend HPA/PDB, ResourceQuota/LimitRange and Pod Security audit/warn labels.
-- MongoDB Community Operator with optional encrypted/versioned S3 backup and a manually approved restore drill.
-- Architecture diagram updated in [`docs/architecture.svg`](architecture.svg).
+1. An AWS account, target region, service quotas and a naming convention for
+   the cluster, state resources, secrets and buckets.
+2. A GitHub repository containing this template and permission to publish its
+   frontend and backend images to that repository's GHCR namespace.
+3. A domain and Route 53 hosted zone if public HTTPS is required.
+4. An operator or CI runner with AWS, Terraform, `kubectl` and Docker access.
+   A GitHub-hosted runner normally needs a restricted public EKS API endpoint;
+   a private-only endpoint requires a self-hosted runner inside or connected to
+   the VPC.
+5. An agreed operator access model. EKS Access Entries should contain the
+   smallest set of IAM principals and policies needed to operate the cluster.
 
-### Observability profile
+The AWS account must allow the bootstrap role to create or manage the VPC,
+EKS, node group, load balancer integration, EBS CSI, IAM/IRSA, Secrets Manager,
+S3, DynamoDB, Route 53 and the optional observability resources.
 
-When `enable_observability = true`, Terraform creates separate private, encrypted and versioned S3 buckets and dedicated IRSA roles for Loki and Tempo. Argo CD installs pinned releases of kube-prometheus-stack, Loki, Grafana Alloy and Tempo. The profile also enables the application's `ServiceMonitor`, provisions an internal Grafana with a generated admin Secret, loads the BulletinBoard dashboard and creates baseline availability alerts.
+## 3. Establish the one unavoidable bootstrap identity
 
-The design follows the usual separation of metrics, logs and traces: Prometheus/Grafana/Alertmanager for metrics and alerts, Loki/Alloy for logs, and Tempo/Alloy OTLP for traces. Alloy's OTLP receiver is ready, but the application itself does not yet emit OpenTelemetry spans.
+The first AWS identity cannot be created by the workflow that needs to
+authenticate with AWS. Create these pieces once, outside the workflow:
 
-## Validation performed
+- A GitHub Actions OIDC provider in AWS.
+- An IAM role whose trust policy is restricted to this repository and the
+  intended branch or environment.
+- Permissions for that role to bootstrap Terraform state and manage only the
+  resources required by `infrastructure/eks/`.
+- A protected GitHub Environment named `production` with required reviewers.
 
-- `terraform fmt -check -recursive` — passed.
-- `terraform validate` — passed.
-- Terraform bootstrap template rendered successfully with observability enabled and disabled; both generated scripts passed `bash -n`.
-- Kustomize rendered `gitops/apps` and `gitops/observability` successfully.
-- Helm templates rendered successfully for kube-prometheus-stack 88.6.1, Loki 7.3.0, Tempo 1.24.3 and Alloy 1.12.1.
-- Render assertions confirmed the 720-hour Tempo retention, dedicated service accounts, Alloy OTLP ports and BulletinBoard alert rules.
-- Frontend `npm run lint` and `npm run build` — passed. Vite reports a non-blocking bundle-size warning.
-- Frontend production image build and non-root NGINX configuration check — passed.
-- .NET solution tests — 6 passed, 0 failed.
-- SVG/XML and `git diff --check` — passed.
+Store the role ARN as the GitHub secret `AWS_ROLE_ARN`. Do not use a long-lived
+AWS access key in GitHub.
 
-The repository does not currently have `actionlint`, `shellcheck`, `trivy` or `checkov` installed locally, so those checks are configured in CI or remain to be run in a dedicated security pipeline.
+## 4. Configure GitHub variables and secrets
 
-## Findings and improvement areas
+The single-trigger workflow is
+[`provision-and-deploy.yml`](../.github/workflows/provision-and-deploy.yml).
+Configure its repository or environment variables before dispatching it.
 
-### Critical before public internet exposure
+### Required baseline variables
 
-**PR-01 — No identity, authorization or moderation.**  The board accepts anonymous display names and messages. Reset/delete protection is optional, and the default Helm values leave it disabled. This is acceptable for a trusted demo network, but not for an untrusted public audience. Add an identity provider, authenticated moderator/admin actions, abuse reporting, content controls and an audit trail.
+- `AWS_REGION`
+- `CLUSTER_NAME`
+- `CLUSTER_VERSION`
+- `DEPLOYMENT_PROFILE=production`
+- `PRODUCTION_PROFILE=true`
+- `MONGODB_SECRET_NAME`
+- `GITOPS_REVISION` is supplied by the workflow input and should normally be
+  `main`.
 
-**PR-02 — Secure public ingress is opt-in.**  The default chart uses `http://bulletinboard.local` and TLS is enabled only through the environment-specific cert-manager path. A public launch needs a real hostname, HTTPS redirect, certificate renewal monitoring, secure headers, an authenticated admin path and an appropriate edge/WAF/rate-limit policy.
+### Production infrastructure variables
 
-### High priority for a multi-replica production service
+- `ENABLE_CERT_MANAGER_TLS=true`, `ROUTE53_HOSTED_ZONE_ID`, `TLS_HOST` and
+  `ACME_EMAIL` for HTTPS.
+- `ENABLE_MONGODB_BACKUP=true` and the retention/bucket settings.
+- `ENABLE_OBSERVABILITY=true` and optional explicit log/trace bucket names.
+- `ENABLE_EKS_SECRETS_ENCRYPTION=true`.
+- `CLUSTER_ENDPOINT_PRIVATE_ACCESS`, `CLUSTER_ENDPOINT_PUBLIC_ACCESS` and
+  `CLUSTER_PUBLIC_ACCESS_CIDRS`. Never leave `0.0.0.0/0` as the production
+  value; use the runner or VPN egress CIDR.
+- `CLUSTER_ENABLED_LOG_TYPES`, normally including `api`, `audit`,
+  `authenticator`, `controllerManager` and `scheduler`.
+- `CLUSTER_ACCESS_ENTRIES_JSON` with the approved IAM principal ARNs and EKS
+  access policies.
 
-**PR-03 — Realtime delivery degrades silently to process-local fan-out.**  If Redis is absent or unavailable, each API replica only notifies its own connected clients. That is correct for the one-replica demo but can lose cross-replica realtime delivery. Hosted scale-out should make Redis a required, monitored dependency or use a durable broker with an explicit degraded-state alert. See [`webapp/RealtimeBroadcaster.cs`](../webapp/RealtimeBroadcaster.cs).
+### Optional dependency variables
 
-**PR-04 — Alerting and tracing still need an operational destination.**  A secret-backed Alertmanager webhook is now configurable, but the destination and on-call routing remain environment-specific. Alloy and Tempo accept OTLP, but the API has no OpenTelemetry instrumentation. Configure the receiver, on-call routing and silences; instrument HTTP, MongoDB and WebSocket paths with trace IDs correlated to structured logs.
+- `ENABLE_REDIS_REALTIME=true` and `REDIS_SECRET_NAME` only after the named
+  Kubernetes Secret exists in the `bulletinboard` namespace with a
+  `connection-string` key. This is required before running more than one
+  backend replica.
+- `ENABLE_ARGOCD_NOTIFICATIONS=true` only after
+  `argocd-notifications-secret` exists in the `argocd` namespace with a
+  `webhook-url` key.
+- `ENABLE_ALERTMANAGER_NOTIFICATIONS=true` only after the named Alertmanager
+  Secret exists in the `observability` namespace with a `webhook-url` key.
 
-**PR-05 — Image signing is not enforced at admission and deployment uses mutable tags.**  CI signs image digests, but the Helm deployment references a SHA tag and the cluster has no Kyverno/cosign admission policy verifying signatures. Prefer digest-pinned manifests and enforce provenance/signature policy in the cluster.
+Keep the following as GitHub secrets, never committed files or plain
+repository variables:
 
-**PR-06 — EKS hardening is available but not automatically selected.**  The Terraform module now supports KMS-backed Kubernetes Secrets encryption, control-plane logs, API endpoint access controls and EKS Access Entries. The production example enables these settings, but the operator must provide valid runner/VPN CIDRs and IAM principals; network policies and strict Pod Security enforcement still need environment testing.
+- `AWS_ROLE_ARN`
+- `TF_STATE_BUCKET`
+- `TF_LOCK_TABLE`
+- `MONGODB_SECRET_JSON` when the MongoDB secret is new or must be rotated; it
+  must contain a JSON object with `username` and `password` strings.
 
-**PR-07 — Backup protection is present but recovery is not fully proven.**  S3 backup storage is private, encrypted, versioned and retained, and a dry-run restore workflow exists. A production launch still needs immutable/locked backup policy where required, cross-account or cross-region copies, defined RPO/RTO, an isolated full restore test and an evidence log of the result.
+For a new cluster, notification Secrets cannot already exist in the new
+namespaces. The clean sequence is to run the first bootstrap with the
+corresponding notification switch disabled, create the Secret after Argo CD
+and the namespace exist, then rerun the workflow with the switch enabled.
 
-### Medium priority
+## 5. Bootstrap remote Terraform state
 
-**PR-09 — Test coverage is useful but not production-complete.**  Current tests cover validation and the in-memory repository. Add MongoDB integration tests, WebSocket multi-client tests, Redis backplane tests, health/probe tests, Helm schema/render tests, frontend unit/e2e tests, load tests and failure-injection tests.
+The workflow calls
+[`bootstrap-state.sh`](../infrastructure/eks/scripts/bootstrap-state.sh)
+before Terraform initialization. It creates or reuses the S3 state bucket and
+DynamoDB lock table, then applies state protection such as private access,
+versioning, encryption, a deny-insecure-transport policy and point-in-time
+recovery where supported.
 
-**PR-10 — Kubernetes guardrails are partly optional.**  The production bootstrap now adds ResourceQuota/LimitRange, non-root security contexts and Pod Security audit/warn labels. The default demo remains one replica, and NetworkPolicy, strict Pod Security enforcement, anti-affinity/topology spread and namespace-level network controls still need a tested production profile.
+The state bucket and lock table names must be globally/account-appropriate and
+must not be shared casually between environments. Terraform state and plans
+must remain outside Git.
 
-**PR-11 — Operational telemetry should grow beyond custom counters.**  Metrics currently cover posts, resets, deletes and WebSocket client count. Add request rate/latency/status histograms, dependency latency, websocket connection/error counters, structured JSON logs and SLO dashboards. Alert rules should be tied to documented SLOs rather than only deployment availability.
+## 6. Run the first provision-and-deploy chain
 
-**PR-12 — Secret lifecycle and operator access need a defined process.**  The generated Grafana password is kept in-cluster, which avoids Git/state exposure, but rotation, recovery and authenticated operator access are not automated. Use an external secret/SSO path for hosted environments and document break-glass access.
+Dispatch `provision-and-deploy.yml` with:
 
-**PR-13 — Supply-chain and upgrade checks need automation.**  Argo CD installation is fetched from the upstream stable manifest, and chart/image updates depend on manual review. Pin the Argo install revision or vendor the manifest, add Renovate/Dependabot, and run policy/dependency/image checks on pull requests as well as on publish.
+- `publish_images=true` for the first environment, so the current frontend and
+  backend are tested, built, scanned, signed and published to GHCR.
+- `bootstrap_argocd=true`.
+- `create_mongodb_secret=true` if the AWS Secrets Manager secret does not yet
+  exist.
+- `gitops_revision=main` or the reviewed release revision.
 
-**PR-14 — Frontend bundle splitting can improve mobile performance.**  The production build succeeds, but Vite warns that the main JavaScript chunk is above 500 kB. Split or lazy-load non-critical code if the UI grows.
+When `publish_images=true`, the reusable `publish-images.yml` job completes
+first. Only after that job succeeds does the provisioning job perform this
+sequence:
 
-## Release gate
+1. Checks out the repository and validates required settings.
+2. Authenticates to AWS with GitHub OIDC.
+3. Verifies or creates the MongoDB secret container without putting its value
+   in Terraform state.
+4. Creates the remote state backend and initializes Terraform.
+5. Plans the VPC, private EKS node subnets, EKS cluster, node group, EBS CSI,
+   IRSA roles, optional KMS/logging/access controls, storage buckets and
+   secret wiring.
+6. Waits for the protected `production` Environment approval.
+7. Applies the approved Terraform plan.
+8. Populates the MongoDB secret when `MONGODB_SECRET_JSON` was supplied.
+9. Updates kubeconfig and bootstraps Argo CD, External Secrets and the
+   environment-specific Argo Applications.
 
-The template is ready to showcase as an architecture and automation example. Before calling a deployed instance production-grade, close PR-01 through PR-07 at minimum, then demonstrate:
+The workflow is idempotent: an existing cluster and MongoDB secret are reused
+and updated rather than recreated. A later infrastructure-only run can set
+`publish_images=false`.
 
-1. authenticated moderator/admin flows and abuse controls;
-2. HTTPS and private operator access;
-3. a multi-replica load test with Redis and no missed WebSocket events;
-4. a tested restore with measured RPO/RTO;
-5. actionable Alertmanager notifications and traces in Grafana;
-6. admission-enforced signed image deployment;
-7. EKS audit logging, KMS encryption, network/pod guardrails and documented runbooks.
+## 7. Let Argo CD reconcile the cluster
 
-**Final assessment:** infrastructure/template quality is strong and coherent; the application is production-minded, but intentionally not yet a fully production-grade public service until the identity, edge-security, multi-replica correctness, recovery and operations gates are completed.
+The Terraform-generated bootstrap installs the Argo CD base and registers the
+GitOps root application. Argo CD then reconciles the resources in this order:
+
+1. `gitops/apps/` and the root application.
+2. NGINX Ingress Controller and its AWS load balancer integration.
+3. External Secrets Operator and its AWS-backed secret store.
+4. cert-manager and the Route 53 ACME issuer when TLS is enabled.
+5. MongoDB Community Operator, the three-member MongoDB replica set and gp3
+   persistent storage.
+6. The BulletinBoard Helm release, including the production profile settings,
+   reset-key Secret reference, ingress and optional Redis backplane.
+7. Prometheus/Grafana/Alertmanager, Loki/Alloy and Tempo when observability is
+   enabled.
+8. MongoDB backup resources when off-cluster backups are enabled.
+
+The application Helm values are kept in Git for shared defaults. Environment-
+specific values such as the hostname, generated reset Secret reference,
+bucket names and IRSA ARNs are injected by the Terraform bootstrap so they do
+not need to be committed to the repository.
+
+## 8. Complete DNS and edge verification
+
+After the NGINX Ingress Controller provisions the AWS NLB:
+
+1. Point the chosen DNS name at the NLB using the appropriate Route 53 alias
+   or record.
+2. Confirm that cert-manager obtains and renews the certificate through the
+   Route 53 DNS-01 challenge.
+3. Verify HTTPS, the application route, `/health/live`, `/health/ready`,
+   `/metrics` access policy and the `/api/ws` WebSocket path.
+4. Confirm that the operator interfaces remain private or authenticated. Do
+   not expose Grafana, Argo CD or Kubernetes administration through the public
+   application ingress without an explicit identity and edge policy.
+
+## 9. Verify the first environment before calling it ready
+
+The deployment is not complete when Terraform exits successfully. Confirm:
+
+- EKS nodes are Ready and the expected node group, EBS CSI and IRSA roles are
+  healthy.
+- Argo Applications are `Synced` and `Healthy`, with no repeated sync errors.
+- External Secrets reports Ready and the MongoDB credentials resolve.
+- MongoDB has all three members available, persistent volumes are bound and
+  application reads/writes work.
+- The frontend and backend probes pass, HPA/PDB objects exist where enabled,
+  and the namespace quota is not blocking scheduling.
+- The NLB, DNS record, TLS certificate and WebSocket path work from a client
+  outside the cluster.
+- Redis fan-out works across backend replicas when scale-out is enabled.
+- A backup object is written to the protected S3 bucket and a restore drill
+  has been executed in an isolated target.
+- Grafana shows application metrics and logs, and Alertmanager delivers a
+  test notification to the configured destination.
+- Control-plane audit logs, KMS Secrets encryption, API access restrictions,
+  Pod Security settings and the intended EKS Access Entries are effective.
+
+Record the result, timestamps, owner and evidence for the backup restore,
+alert test, scale test and security checks. This becomes the environment's
+initial operational record.
+
+## 10. Close the public-production gates
+
+The template supplies infrastructure hooks, but the application is not a
+fully public production service until these decisions and tests are completed:
+
+1. Add an identity provider, authenticated moderator/admin actions,
+   authorization, abuse reporting, content moderation and an audit trail.
+2. Enforce HTTPS, secure headers, edge rate limits/WAF policy and private
+   operator access.
+3. Make Redis or another shared broker a required, monitored dependency for
+   multi-replica realtime delivery, then prove that no WebSocket events are
+   missed during rollout and failure.
+4. Define RPO/RTO and prove an isolated restore. Add immutable or cross-account
+   backup protection if the data classification requires it.
+5. Configure actionable Alertmanager routing, on-call ownership and silences.
+   Add OpenTelemetry instrumentation if traces are expected in Tempo.
+6. Pin images by digest and enforce cosign/provenance verification with a
+   cluster admission policy such as Kyverno or an equivalent control.
+7. Test and enforce NetworkPolicies, strict Pod Security, topology spreading,
+   resource limits and cluster upgrade procedures.
+8. Define secret rotation, break-glass access, dependency upgrades, incident
+   response and rollback runbooks.
+
+Until these gates are demonstrated in a real environment, describe the result
+as a production-minded Kubernetes template rather than a production-grade
+public message board.
+
+## 11. Day-2 delivery and operations
+
+- Application change: push to GitHub, let `publish-images.yml` test/build/scan/
+  sign the images and update the SHA references; Argo CD detects the GitOps
+  change and rolls out the release.
+- Infrastructure change: dispatch `provision-and-deploy.yml`, review the
+  Terraform plan and approve the protected production Environment.
+- Operational change: update the relevant Terraform, Helm or GitOps input,
+  validate locally, review the diff and reconcile through Argo CD.
+- Recovery: use the approved MongoDB restore drill workflow, document the
+  result and never treat a dry-run as proof of recoverability.
+- Upgrades: review EKS, Argo CD, operators and chart versions deliberately;
+  stage them in a non-production environment before production.
+- Teardown: destroy unused environments deliberately and retain required
+  backups, evidence and state according to the environment's retention policy.
+
+## Repository map
+
+- [`README.md`](../README.md) — local development, workflows and configuration
+  overview.
+- [`infrastructure/eks/`](../infrastructure/eks/) — Terraform, bootstrap,
+  state backend and production example variables.
+- [`gitops/`](../gitops/) — Argo CD applications and cluster services.
+- [`k8s/helm/bulletinboard/`](../k8s/helm/bulletinboard/) — application chart.
+- [`docs/architecture.svg`](architecture.svg) — architecture and delivery
+  flow diagram.
+- [`docs/deployment-flow.svg`](deployment-flow.svg) — numbered environment
+  setup and operations flow.
+- [`SECURITY.md`](../SECURITY.md) — secret-handling and security policy.
+
+The next document to add, when this checklist is approved, is the exact
+environment setup guide with copy/paste commands, IAM policy examples,
+GitHub settings, secret creation steps and post-deploy verification commands.

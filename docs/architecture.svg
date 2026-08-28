@@ -132,23 +132,24 @@
     <text x="1035" y="503" class="box-text">3-member replica set + service</text>
     <text x="1035" y="524" class="box-text">encrypted gp3 persistent volumes</text>
 
-    <rect x="1015" y="560" width="185" height="95" rx="14" fill="#164e63"/>
+    <rect x="1015" y="560" width="185" height="125" rx="14" fill="#164e63"/>
     <text x="1035" y="596" class="box-title" font-size="16">Redis backplane</text>
     <text x="1035" y="623" class="box-text">optional for scale-out</text>
     <text x="1035" y="642" class="box-text">realtime fan-out</text>
 
-    <rect x="1225" y="560" width="170" height="95" rx="14" fill="#164e63"/>
+    <rect x="1225" y="560" width="170" height="125" rx="14" fill="#164e63"/>
     <text x="1245" y="596" class="box-title" font-size="16">Observability</text>
     <text x="1245" y="623" class="box-text">Prometheus + Grafana</text>
-    <text x="1245" y="644" class="box-text">Alertmanager + Loki/Alloy</text>
-    <text x="1245" y="665" class="box-text">Tempo + S3/IRSA retention</text>
+    <text x="1245" y="644" class="box-text">Alertmanager + Loki</text>
+    <text x="1245" y="665" class="box-text">Alloy + Tempo</text>
+    <text x="1245" y="683" class="box-text">S3 / IRSA retention</text>
 
-    <rect x="1015" y="680" width="380" height="80" rx="14" fill="#164e63"/>
-    <text x="1035" y="715" class="box-title" font-size="16">MongoDB backup + restore</text>
-    <text x="1035" y="742" class="box-text">optional S3 + bucket-scoped IRSA · manual restore drill</text>
+    <rect x="1015" y="700" width="380" height="60" rx="14" fill="#164e63"/>
+    <text x="1035" y="728" class="box-title" font-size="16">MongoDB backup + restore</text>
+    <text x="1035" y="750" class="box-text">optional S3 + bucket-scoped IRSA · manual restore drill</text>
   </g>
   <path d="M900 660 C940 660 950 272 1009 266" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow-teal)"/>
-  <path d="M900 460 C940 460 950 300 1009 300 C1080 300 1185 300 1219 330" fill="none" stroke="#67e8f9" stroke-width="2" stroke-dasharray="7 7" marker-end="url(#arrow-teal)"/>
+  <path d="M900 460 C940 450 975 300 1030 300 C1090 300 1155 300 1180 300 C1205 300 1215 315 1219 330" fill="none" stroke="#67e8f9" stroke-width="2" stroke-dasharray="7 7" marker-end="url(#arrow-teal)"/>
   <text x="912" y="456" class="small flow-label">Argo sync</text>
   <text x="912" y="425" class="small flow-label">image pull</text>
 

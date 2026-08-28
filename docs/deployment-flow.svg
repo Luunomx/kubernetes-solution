@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1150" viewBox="0 0 1500 1150" role="img" aria-labelledby="title desc">
+  <title id="title">BulletinBoard production deployment flow</title>
+  <desc id="desc">A numbered deployment flow from AWS and GitHub preparation through Terraform, Argo CD, EKS runtime verification and day-two operations.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#172554"/>
+    </linearGradient>
+    <linearGradient id="prepare" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#334155"/>
+      <stop offset="1" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="delivery" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#0891b2"/>
+    </linearGradient>
+    <linearGradient id="runtime" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#164e63"/>
+      <stop offset="1" stop-color="#155e75"/>
+    </linearGradient>
+    <linearGradient id="gate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#92400e"/>
+      <stop offset="1" stop-color="#b91c1c"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000" flood-opacity=".25"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#67e8f9"/>
+    </marker>
+    <marker id="arrow-muted" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L9,3 z" fill="#93c5fd"/>
+    </marker>
+    <style>
+      .title { font: 700 34px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f8fafc; }
+      .subtitle { font: 400 17px Inter, ui-sans-serif, system-ui, sans-serif; fill: #cbd5e1; }
+      .phase { font: 700 16px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e2e8f0; letter-spacing: 1.6px; }
+      .card-title { font: 700 19px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f8fafc; }
+      .card-text { font: 400 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #dbeafe; }
+      .step { font: 800 17px Inter, ui-sans-serif, system-ui, sans-serif; fill: #0f172a; text-anchor: middle; dominant-baseline: central; }
+      .flow-label { font: 500 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #cbd5e1; stroke: #0f172a; stroke-width: 3px; stroke-linejoin: round; paint-order: stroke fill; }
+      .footer-title { font: 700 18px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f8fafc; }
+      .footer-text { font: 400 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #dbeafe; }
+      .legend { font: 500 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e2e8f0; }
+    </style>
+  </defs>
+
+  <rect width="1500" height="1150" rx="28" fill="url(#bg)"/>
+  <circle cx="1360" cy="90" r="250" fill="#4f46e5" opacity=".12"/>
+  <circle cx="120" cy="1040" r="300" fill="#0891b2" opacity=".10"/>
+
+  <text x="70" y="70" class="title">BulletinBoard production deployment flow</text>
+  <text x="70" y="102" class="subtitle">One ordered path from a clean repository to a verified AWS EKS environment.</text>
+  <text x="1430" y="78" class="flow-label" text-anchor="end">No deployment happens until the workflow is triggered and approved.</text>
+
+  <text x="70" y="160" class="phase">PHASE 1 · PREPARE</text>
+  <g filter="url(#shadow)">
+    <rect x="70" y="185" width="430" height="145" rx="18" fill="url(#prepare)"/>
+    <circle cx="105" cy="220" r="22" fill="#93c5fd"/>
+    <text x="105" y="220" class="step">1</text>
+    <text x="145" y="226" class="card-title">Prerequisites</text>
+    <text x="100" y="264" class="card-text">AWS account, region, quotas and naming</text>
+    <text x="100" y="289" class="card-text">GitHub repository, GHCR and optional Route 53 domain</text>
+    <text x="100" y="314" class="card-text">Runner with AWS CLI, Terraform and kubectl</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="535" y="185" width="430" height="145" rx="18" fill="url(#prepare)"/>
+    <circle cx="570" cy="220" r="22" fill="#93c5fd"/>
+    <text x="570" y="220" class="step">2</text>
+    <text x="610" y="226" class="card-title">Trust + access</text>
+    <text x="565" y="264" class="card-text">GitHub Actions OIDC provider and restricted IAM role</text>
+    <text x="565" y="289" class="card-text">Trust only the repository and approved ref/environment</text>
+    <text x="565" y="314" class="card-text">Protected GitHub production Environment with reviewers</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1000" y="185" width="430" height="145" rx="18" fill="url(#prepare)"/>
+    <circle cx="1035" cy="220" r="22" fill="#93c5fd"/>
+    <text x="1035" y="220" class="step">3</text>
+    <text x="1075" y="226" class="card-title">Settings + secrets</text>
+    <text x="1030" y="264" class="card-text">Production profile, cluster settings and API CIDRs</text>
+    <text x="1030" y="289" class="card-text">MongoDB credentials, TLS, backup and observability choices</text>
+    <text x="1030" y="314" class="card-text">Redis and notification Secrets only when destinations exist</text>
+  </g>
+  <path d="M500 257 L525 257" fill="none" stroke="#93c5fd" stroke-width="3" marker-end="url(#arrow-muted)"/>
+  <path d="M965 257 L990 257" fill="none" stroke="#93c5fd" stroke-width="3" marker-end="url(#arrow-muted)"/>
+
+  <text x="70" y="395" class="phase">PHASE 2 · PROVISION</text>
+  <g filter="url(#shadow)">
+    <rect x="70" y="420" width="430" height="145" rx="18" fill="url(#delivery)"/>
+    <circle cx="105" cy="455" r="22" fill="#67e8f9"/>
+    <text x="105" y="455" class="step">4</text>
+    <text x="145" y="461" class="card-title">Build + publish</text>
+    <text x="100" y="499" class="card-text">Test frontend and API, then build both images</text>
+    <text x="100" y="524" class="card-text">Scan, generate SBOM/provenance and sign with cosign</text>
+    <text x="100" y="549" class="card-text">Publish immutable commit-SHA images to GHCR</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="535" y="420" width="430" height="145" rx="18" fill="url(#delivery)"/>
+    <circle cx="570" cy="455" r="22" fill="#67e8f9"/>
+    <text x="570" y="455" class="step">5</text>
+    <text x="610" y="461" class="card-title">Bootstrap state</text>
+    <text x="565" y="499" class="card-text">Create or reuse private S3 state and DynamoDB lock resources</text>
+    <text x="565" y="524" class="card-text">Enable encryption, versioning, transport protection and PITR</text>
+    <text x="565" y="549" class="card-text">Keep state, plans and credentials outside Git</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1000" y="420" width="430" height="145" rx="18" fill="url(#delivery)"/>
+    <circle cx="1035" cy="455" r="22" fill="#67e8f9"/>
+    <text x="1035" y="455" class="step">6</text>
+    <text x="1075" y="461" class="card-title">Terraform apply</text>
+    <text x="1030" y="499" class="card-text">Plan, wait for production approval and apply the reviewed plan</text>
+    <text x="1030" y="524" class="card-text">Create VPC, EKS nodes, EBS CSI, IRSA and optional KMS/logs</text>
+    <text x="1030" y="549" class="card-text">Create storage, secret wiring and environment outputs</text>
+  </g>
+  <path d="M1215 330 C1215 365 360 365 285 405" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="760" y="355" class="flow-label" text-anchor="middle">continue</text>
+  <path d="M500 492 L525 492" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M965 492 L990 492" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <text x="70" y="630" class="phase">PHASE 3 · RECONCILE + VERIFY</text>
+  <g filter="url(#shadow)">
+    <rect x="70" y="655" width="430" height="145" rx="18" fill="url(#runtime)"/>
+    <circle cx="105" cy="690" r="22" fill="#67e8f9"/>
+    <text x="105" y="690" class="step">7</text>
+    <text x="145" y="696" class="card-title">Bootstrap Argo CD</text>
+    <text x="100" y="734" class="card-text">Install Argo CD and External Secrets integration</text>
+    <text x="100" y="759" class="card-text">Register the generated root application for the chosen Git ref</text>
+    <text x="100" y="784" class="card-text">Inject environment-specific values without committing them</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="535" y="655" width="430" height="145" rx="18" fill="url(#runtime)"/>
+    <circle cx="570" cy="690" r="22" fill="#67e8f9"/>
+    <text x="570" y="690" class="step">8</text>
+    <text x="610" y="696" class="card-title">Reconcile EKS runtime</text>
+    <text x="565" y="734" class="card-text">NGINX NLB, cert-manager and MongoDB Operator</text>
+    <text x="565" y="759" class="card-text">BulletinBoard Helm release, Redis and production guardrails</text>
+    <text x="565" y="784" class="card-text">Prometheus, Grafana, Alertmanager, Loki/Alloy and Tempo</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="1000" y="655" width="430" height="145" rx="18" fill="url(#runtime)"/>
+    <circle cx="1035" cy="690" r="22" fill="#67e8f9"/>
+    <text x="1035" y="690" class="step">9</text>
+    <text x="1075" y="696" class="card-title">DNS + verify</text>
+    <text x="1030" y="730" class="card-text">Point Route 53 to the NLB; verify ACME and HTTPS</text>
+    <text x="1030" y="750" class="card-text">Check Argo health, probes, MongoDB and WebSockets</text>
+    <text x="1030" y="770" class="card-text">Confirm HPA/PDB and production guardrails</text>
+    <text x="1030" y="790" class="card-text">Test backup/restore and an Alertmanager notification</text>
+  </g>
+  <path d="M500 727 L525 727" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M965 727 L990 727" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M1215 565 C1215 600 360 600 285 640" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="760" y="590" class="flow-label" text-anchor="middle">continue</text>
+  <path d="M1215 800 L1215 850" fill="none" stroke="#fcd34d" stroke-width="3" marker-end="url(#arrow-muted)"/>
+  <text x="1230" y="830" class="flow-label">gate</text>
+
+  <g filter="url(#shadow)">
+    <rect x="70" y="865" width="1360" height="190" rx="20" fill="#0f172a" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="105" cy="905" r="22" fill="#fcd34d"/>
+    <text x="105" y="905" class="step">10</text>
+    <text x="145" y="911" class="footer-title">Production gate + day-two operations</text>
+    <line x1="750" y1="890" x2="750" y2="1028" stroke="#334155" stroke-width="2"/>
+    <text x="100" y="956" class="footer-title">Before public traffic</text>
+    <text x="100" y="982" class="footer-text">Auth/moderation · HTTPS/WAF · private operators · Redis scale test</text>
+    <text x="100" y="1007" class="footer-text">Restore evidence/RPO/RTO · actionable alerts · signed-image admission</text>
+    <text x="100" y="1032" class="footer-text">NetworkPolicies · strict Pod Security · secret rotation · runbooks</text>
+    <text x="800" y="956" class="footer-title">After go-live</text>
+    <text x="800" y="982" class="footer-text">App push → publish-images → GitOps SHA → Argo CD rollout</text>
+    <text x="800" y="1007" class="footer-text">Infra change → Terraform plan → approval → idempotent apply</text>
+    <text x="800" y="1032" class="footer-text">Monitor, upgrade, back up, restore and record operational evidence</text>
+  </g>
+
+  <line x1="70" y1="1090" x2="100" y2="1090" stroke="#93c5fd" stroke-width="3" marker-end="url(#arrow-muted)"/>
+  <text x="115" y="1095" class="legend">prepare / access</text>
+  <line x1="300" y1="1090" x2="330" y2="1090" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="345" y="1095" class="legend">automated delivery</text>
+  <line x1="560" y1="1090" x2="590" y2="1090" stroke="#fcd34d" stroke-width="3" marker-end="url(#arrow-muted)"/>
+  <text x="605" y="1095" class="legend">production gate / operator decision</text>
+  <text x="1430" y="1095" class="legend" text-anchor="end">Template flow · review every environment-specific value</text>
+</svg>

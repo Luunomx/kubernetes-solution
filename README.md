@@ -23,6 +23,8 @@ The project is intentionally educational. The interesting part is the delivery p
 
 ![BulletinBoard architecture](docs/architecture.svg)
 
+![BulletinBoard production deployment flow](docs/deployment-flow.svg)
+
 ## Recommended path: local Compose first, then EKS
 
 The recommended path is:
@@ -96,6 +98,7 @@ dotnet test tests/BulletinBoard.Tests/BulletinBoard.Tests.csproj
 | `gitops/redis/` | Optional Redis realtime backplane guidance |
 | `docker-compose.yml` | Local development stack |
 | `docs/architecture.svg` | High-level architecture diagram |
+| `docs/deployment-flow.svg` | Numbered setup, verification and operations flow |
 
 ## Kubernetes and secrets
 
