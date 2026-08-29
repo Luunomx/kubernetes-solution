@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1020" viewBox="0 0 1500 1020" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1020" viewBox="0 0 1500 1020" preserveAspectRatio="xMidYMid meet" shape-rendering="geometricPrecision" text-rendering="optimizeLegibility" role="img" aria-labelledby="title desc">
   <title id="title">BulletinBoard architecture</title>
   <desc id="desc">A React frontend and ASP.NET Core API run locally with an in-memory store or Docker Compose and MongoDB. GitHub Actions tests, builds, scans, signs and promotes immutable images to GHCR, and a manually approved workflow can provision or update EKS. Terraform creates remote state, least-privilege IRSA, optional S3 backup and observability storage, and environment-specific secret wiring before bootstrapping Argo CD. Argo CD deploys the Helm application and cluster services to AWS EKS, with NGINX Ingress, cert-manager TLS, MongoDB, optional Redis, Prometheus, Grafana, Alertmanager, Loki, Alloy, Tempo, notifications and a manual restore drill.</desc>
   <defs>
@@ -21,24 +21,42 @@
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000" flood-opacity=".25"/>
     </filter>
-    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#93c5fd"/>
+    <marker id="arrow-blue" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="14" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#93c5fd"/>
     </marker>
-    <marker id="arrow-teal" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#67e8f9"/>
+    <marker id="arrow-teal" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="14" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#67e8f9"/>
     </marker>
-    <marker id="arrow-amber" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
-      <path d="M0,0 L0,6 L9,3 z" fill="#fcd34d"/>
+    <marker id="arrow-amber" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="14" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#fcd34d"/>
+    </marker>
+    <marker id="side-arrow-blue" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="0" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#93c5fd"/>
+    </marker>
+    <marker id="side-arrow-teal" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="0" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#67e8f9"/>
+    </marker>
+    <marker id="side-arrow-amber" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="0" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#fcd34d"/>
+    </marker>
+    <marker id="tip-arrow-blue" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="0" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#93c5fd"/>
+    </marker>
+    <marker id="tip-arrow-teal" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="0" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#67e8f9"/>
+    </marker>
+    <marker id="tip-arrow-amber" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="10" refX="0" refY="5" orient="auto">
+      <path d="M0,0 L0,10 L14,5 z" fill="#fcd34d"/>
     </marker>
     <style>
       .title { font: 700 34px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f8fafc; }
       .subtitle { font: 400 17px Inter, ui-sans-serif, system-ui, sans-serif; fill: #cbd5e1; }
       .section { font: 700 17px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e2e8f0; letter-spacing: 1.5px; }
       .box-title { font: 700 18px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f8fafc; }
-      .box-text { font: 400 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #dbeafe; }
-      .small { font: 500 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #cbd5e1; }
+      .box-text { font: 600 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #f8fafc; }
+      .small { font: 600 14px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e2e8f0; }
       .flow-label { stroke: #0f172a; stroke-width: 3px; stroke-linejoin: round; paint-order: stroke fill; }
-      .legend { font: 500 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e2e8f0; }
+      .legend { font: 600 13px Inter, ui-sans-serif, system-ui, sans-serif; fill: #e2e8f0; }
       .chip { font: 700 12px Inter, ui-sans-serif, system-ui, sans-serif; fill: #a5f3fc; letter-spacing: .8px; }
     </style>
   </defs>
@@ -50,66 +68,66 @@
   <text x="70" y="72" class="title">BulletinBoard architecture</text>
   <text x="70" y="104" class="subtitle">A production-minded template from local development to GitOps delivery on AWS EKS.</text>
 
-  <text x="70" y="164" class="section">APPLICATION</text>
-  <text x="500" y="164" class="section">DELIVERY / GITOPS</text>
-  <text x="980" y="164" class="section">RUNTIME / AWS</text>
+  <text x="235" y="164" class="section" text-anchor="middle">APPLICATION</text>
+  <text x="700" y="164" class="section" text-anchor="middle">DELIVERY / GITOPS</text>
+  <text x="1205" y="164" class="section" text-anchor="middle">RUNTIME / AWS</text>
 
-  <g filter="url(#shadow)">
-    <rect x="70" y="195" width="330" height="145" rx="18" fill="url(#app)"/>
+  <g>
+    <rect filter="url(#shadow)" x="70" y="195" width="330" height="145" rx="18" fill="url(#app)"/>
     <text x="100" y="235" class="box-title">React + Vite frontend</text>
     <text x="100" y="264" class="box-text">simple-fluid-page/</text>
     <text x="100" y="291" class="box-text">Nginx-served bulletin board UI</text>
     <text x="100" y="318" class="box-text">REST + realtime WebSocket client</text>
   </g>
-  <g filter="url(#shadow)">
-    <rect x="70" y="380" width="330" height="165" rx="18" fill="url(#app)"/>
+  <g>
+    <rect filter="url(#shadow)" x="70" y="380" width="330" height="165" rx="18" fill="url(#app)"/>
     <text x="100" y="420" class="box-title">ASP.NET Core 8 API</text>
     <text x="100" y="449" class="box-text">webapp/</text>
     <text x="100" y="476" class="box-text">REST posts + /api/ws</text>
     <text x="100" y="503" class="box-text">rate limiting, health checks</text>
     <text x="100" y="530" class="box-text">metrics + optional Redis backplane</text>
   </g>
-  <g filter="url(#shadow)">
-    <rect x="70" y="585" width="330" height="165" rx="18" fill="#334155"/>
+  <g>
+    <rect filter="url(#shadow)" x="70" y="585" width="330" height="165" rx="18" fill="#334155"/>
     <text x="100" y="625" class="box-title">Local development</text>
     <text x="100" y="654" class="box-text">dotnet + Vite</text>
     <text x="100" y="681" class="box-text">in-memory store for a fast demo</text>
     <text x="100" y="708" class="box-text">Docker Compose + persistent MongoDB</text>
     <text x="100" y="735" class="box-text">same API and frontend containers</text>
   </g>
-  <path d="M235 345 L235 374" fill="none" stroke="#93c5fd" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <path d="M235 345 L235 360" fill="none" stroke="#93c5fd" stroke-width="3" stroke-linecap="butt" marker-end="url(#tip-arrow-blue)"/>
   <text x="253" y="365" class="small">REST / WebSocket</text>
 
-  <g filter="url(#shadow)">
-    <rect x="500" y="195" width="400" height="180" rx="18" fill="#334155"/>
+  <g>
+    <rect filter="url(#shadow)" x="500" y="195" width="400" height="180" rx="18" fill="#334155"/>
     <text x="530" y="235" class="box-title">GitHub Actions</text>
     <text x="530" y="264" class="box-text">app push → test, build, scan, sign</text>
     <text x="530" y="291" class="box-text">promote SHA tags → GHCR + GitOps</text>
     <text x="530" y="318" class="box-text">manual EKS → approval + Terraform</text>
     <text x="530" y="345" class="box-text">showcase-dry-run.yml → safe preview</text>
   </g>
-  <g filter="url(#shadow)">
-    <rect x="500" y="395" width="400" height="130" rx="18" fill="url(#platform)"/>
+  <g>
+    <rect filter="url(#shadow)" x="500" y="395" width="400" height="130" rx="18" fill="url(#platform)"/>
     <text x="530" y="435" class="box-title">GHCR</text>
     <text x="530" y="464" class="box-text">Backend + frontend images</text>
     <text x="530" y="491" class="box-text">SBOM + signed immutable SHA tags</text>
   </g>
-  <g filter="url(#shadow)">
-    <rect x="500" y="570" width="400" height="180" rx="18" fill="url(#platform)"/>
+  <g>
+    <rect filter="url(#shadow)" x="500" y="570" width="400" height="180" rx="18" fill="url(#platform)"/>
     <text x="530" y="610" class="box-title">Argo CD + Helm</text>
     <text x="530" y="639" class="box-text">Terraform bootstrap → root app</text>
     <text x="530" y="666" class="box-text">gitops/apps/ + k8s/helm/</text>
     <text x="530" y="693" class="box-text">syncs ingress, operators and app</text>
     <text x="530" y="720" class="box-text">desired state + notifications (opt.)</text>
   </g>
-  <path d="M400 267 C440 267 455 267 494 267" fill="none" stroke="#93c5fd" stroke-width="3" marker-end="url(#arrow-blue)"/>
-  <path d="M700 381 L700 384" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow-teal)"/>
-  <path d="M700 531 L700 559" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow-teal)"/>
-  <text x="716" y="376" class="small">publish</text>
+  <path d="M410 267 C440 267 455 267 476 267" fill="none" stroke="#93c5fd" stroke-width="4" marker-end="url(#side-arrow-blue)"/>
+  <path d="M700 376 L700 380" fill="none" stroke="#67e8f9" stroke-width="3" stroke-linecap="butt" marker-end="url(#tip-arrow-teal)"/>
+  <path d="M700 531 L700 545" fill="none" stroke="#67e8f9" stroke-width="3" stroke-linecap="butt" marker-end="url(#tip-arrow-teal)"/>
+  <text x="716" y="391" class="small">publish</text>
   <text x="716" y="551" class="small">desired state</text>
 
-  <g filter="url(#shadow)">
-    <rect x="980" y="185" width="450" height="600" rx="22" fill="#1e293b" stroke="#22d3ee" stroke-width="2"/>
+  <g>
+    <rect filter="url(#shadow)" x="980" y="185" width="450" height="625" rx="22" fill="#1e293b" stroke="#22d3ee" stroke-width="2"/>
     <text x="1015" y="228" class="box-title">AWS EKS / Kubernetes</text>
     <text x="1250" y="228" class="chip">CLOUD RUNTIME</text>
 
@@ -125,7 +143,7 @@
     <text x="1245" y="351" class="box-title" font-size="16">App workloads</text>
     <text x="1245" y="378" class="box-text">React + API</text>
     <text x="1245" y="397" class="box-text">HPA / PDB optional</text>
-    <path d="M1205 362 L1218 362" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow-teal)"/>
+  <path d="M1203 362 L1208 362" fill="none" stroke="#67e8f9" stroke-width="4" stroke-linecap="butt" marker-end="url(#side-arrow-teal)"/>
 
     <rect x="1015" y="440" width="380" height="95" rx="14" fill="#164e63"/>
     <text x="1035" y="476" class="box-title" font-size="16">MongoDB Community Operator</text>
@@ -137,48 +155,53 @@
     <text x="1035" y="623" class="box-text">optional for scale-out</text>
     <text x="1035" y="642" class="box-text">realtime fan-out</text>
 
-    <rect x="1225" y="560" width="170" height="125" rx="14" fill="#164e63"/>
+    <rect x="1225" y="560" width="170" height="155" rx="14" fill="#164e63"/>
     <text x="1245" y="596" class="box-title" font-size="16">Observability</text>
-    <text x="1245" y="623" class="box-text">Prometheus + Grafana</text>
-    <text x="1245" y="644" class="box-text">Alertmanager + Loki</text>
-    <text x="1245" y="665" class="box-text">Alloy + Tempo</text>
-    <text x="1245" y="683" class="box-text">S3 / IRSA retention</text>
+    <text x="1245" y="623" class="box-text">Prometheus +</text>
+    <text x="1245" y="644" class="box-text">Grafana + Loki</text>
+    <text x="1245" y="665" class="box-text">Alertmanager</text>
+    <text x="1245" y="686" class="box-text">Alloy + Tempo</text>
+    <text x="1245" y="707" class="box-text">S3 retention</text>
 
-    <rect x="1015" y="700" width="380" height="60" rx="14" fill="#164e63"/>
-    <text x="1035" y="728" class="box-title" font-size="16">MongoDB backup + restore</text>
-    <text x="1035" y="750" class="box-text">optional S3 + bucket-scoped IRSA · manual restore drill</text>
+    <rect x="1015" y="730" width="380" height="75" rx="14" fill="#164e63"/>
+    <text x="1035" y="758" class="box-title" font-size="16">MongoDB backup + restore</text>
+    <text x="1035" y="781" class="box-text">optional S3 + bucket-scoped IRSA</text>
+    <text x="1035" y="801" class="box-text">manual restore drill</text>
   </g>
   <path d="M900 660 C940 660 950 272 1009 266" fill="none" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow-teal)"/>
   <path d="M900 460 C940 450 975 300 1030 300 C1090 300 1155 300 1180 300 C1205 300 1215 315 1219 330" fill="none" stroke="#67e8f9" stroke-width="2" stroke-dasharray="7 7" marker-end="url(#arrow-teal)"/>
-  <text x="912" y="456" class="small flow-label">Argo sync</text>
-  <text x="912" y="425" class="small flow-label">image pull</text>
+  <text x="940" y="515" class="small flow-label" text-anchor="middle">
+    <tspan x="940" dy="0">Argo</tspan>
+    <tspan x="940" dy="16">sync</tspan>
+  </text>
+  <text x="1105" y="300" class="small flow-label" text-anchor="middle" dominant-baseline="middle">image pull</text>
 
-  <g filter="url(#shadow)">
-    <rect x="980" y="825" width="210" height="115" rx="18" fill="url(#security)"/>
-    <text x="1010" y="865" class="box-title">AWS Secrets</text>
-    <text x="1010" y="894" class="box-text">Secrets Manager</text>
-    <text x="1010" y="921" class="box-text">Mongo credentials</text>
+  <g>
+    <rect filter="url(#shadow)" x="980" y="835" width="210" height="105" rx="18" fill="url(#security)"/>
+    <text x="1010" y="870" class="box-title">AWS Secrets</text>
+    <text x="1010" y="899" class="box-text">Secrets Manager</text>
+    <text x="1010" y="926" class="box-text">Mongo credentials</text>
   </g>
-  <g filter="url(#shadow)">
-    <rect x="1220" y="825" width="210" height="115" rx="18" fill="#475569"/>
-    <text x="1250" y="865" class="box-title">Terraform</text>
-    <text x="1250" y="894" class="box-text">VPC + EKS + IRSA/KMS</text>
-    <text x="1250" y="921" class="box-text">audit logs + Access Entries</text>
+  <g>
+    <rect filter="url(#shadow)" x="1220" y="835" width="210" height="105" rx="18" fill="#475569"/>
+    <text x="1250" y="870" class="box-title">Terraform</text>
+    <text x="1250" y="899" class="box-text">VPC + EKS + IRSA/KMS</text>
+    <text x="1250" y="926" class="box-text">audit logs + Access Entries</text>
   </g>
-  <path d="M1085 817 L1085 795" fill="none" stroke="#fcd34d" stroke-width="3" marker-end="url(#arrow-amber)"/>
-  <text x="1100" y="806" class="small">secret wiring</text>
-  <path d="M1325 817 L1325 795" fill="none" stroke="#fcd34d" stroke-width="3" marker-end="url(#arrow-amber)"/>
-  <text x="1338" y="806" class="small">provisions</text>
+  <path d="M1085 827 L1085 824" fill="none" stroke="#fcd34d" stroke-width="3" stroke-linecap="butt" marker-end="url(#tip-arrow-amber)"/>
+  <text x="1100" y="827" class="small">secret wiring</text>
+  <path d="M1325 827 L1325 824" fill="none" stroke="#fcd34d" stroke-width="3" stroke-linecap="butt" marker-end="url(#tip-arrow-amber)"/>
+  <text x="1338" y="827" class="small">provisions</text>
 
   <rect x="70" y="825" width="830" height="115" rx="18" fill="#0f172a" stroke="#64748b" stroke-width="2"/>
   <text x="100" y="863" class="box-title">What this template covers</text>
   <text x="100" y="892" class="box-text">Local demo → tested/signed containers → GHCR → Terraform → Argo CD → EKS</text>
   <text x="100" y="919" class="box-text">TLS, secrets, S3 backup/restore, observability and documented trade-offs</text>
 
-  <line x1="980" y1="975" x2="1020" y2="975" stroke="#93c5fd" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <line x1="980" y1="975" x2="1020" y2="975" stroke="#93c5fd" stroke-width="3" marker-end="url(#side-arrow-blue)"/>
   <text x="1035" y="980" class="legend">application / build flow</text>
-  <line x1="1190" y1="975" x2="1230" y2="975" stroke="#67e8f9" stroke-width="3" marker-end="url(#arrow-teal)"/>
+  <line x1="1190" y1="975" x2="1230" y2="975" stroke="#67e8f9" stroke-width="3" marker-end="url(#side-arrow-teal)"/>
   <text x="1245" y="980" class="legend">deployment / image flow</text>
-  <line x1="980" y1="1005" x2="1020" y2="1005" stroke="#fcd34d" stroke-width="3" marker-end="url(#arrow-amber)"/>
+  <line x1="980" y1="1005" x2="1020" y2="1005" stroke="#fcd34d" stroke-width="3" marker-end="url(#side-arrow-amber)"/>
   <text x="1035" y="1010" class="legend">infrastructure / secrets</text>
 </svg>
