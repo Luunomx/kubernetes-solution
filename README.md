@@ -21,9 +21,9 @@ The project is intentionally educational. The interesting part is the delivery p
   Alertmanager, Loki, Grafana Alloy and Tempo.
 - Secret-safe examples and a documented security policy.
 
-![BulletinBoard architecture](docs/architecture.svg)
+![BulletinBoard architecture](./docs/architecture.svg?v=f362dd6)
 
-![BulletinBoard production deployment flow](docs/deployment-flow.svg)
+![BulletinBoard production deployment flow](./docs/deployment-flow.svg?v=f362dd6)
 
 ## Recommended path: local Compose first, then EKS
 
